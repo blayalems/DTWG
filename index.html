@@ -7,7 +7,7 @@
     <link rel="manifest" href="./manifest.json">
     <meta name="theme-color" content="#6750A4" id="meta-theme-color">
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📖</text></svg>">
-    <link rel="apple-touch-icon" sizes="180x180" href="./icon-180.png">
+    <link rel="apple-touch-icon" sizes="192x192" href="./icons/icon-192.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -940,6 +940,37 @@ a { color: var(--md-primary); text-decoration: none; }
   pointer-events: none; z-index: 9999; display: none;
 }
 
+/* ===== TOAST NOTIFICATION ===== */
+.app-toast {
+  position: fixed; bottom: calc(80px + var(--safe-bottom) + 16px); left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  background: var(--md-on-surface); color: var(--md-surface);
+  padding: 12px 20px; border-radius: 8px;
+  font-size: .875rem; font-weight: 500;
+  white-space: nowrap; max-width: calc(100vw - 32px);
+  opacity: 0; transition: opacity .25s, transform .25s;
+  z-index: 10000; pointer-events: none;
+}
+.app-toast.visible { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* ===== CONFIRM DIALOG ===== */
+.confirm-overlay {
+  position: fixed; inset: 0; z-index: 10001;
+  background: rgba(0,0,0,.45);
+  display: flex; align-items: center; justify-content: center;
+}
+.confirm-overlay[hidden] { display: none; }
+.confirm-box {
+  background: var(--md-surface); border-radius: 16px;
+  padding: 24px; max-width: 320px; width: calc(100% - 48px);
+  box-shadow: 0 8px 32px rgba(0,0,0,.25);
+}
+.confirm-message { font-size: 1rem; color: var(--md-on-surface); line-height: 1.5; margin-bottom: 20px; }
+.confirm-actions { display: flex; gap: 12px; justify-content: flex-end; }
+.confirm-btn { padding: 10px 20px; border-radius: 100px; font-size: .875rem; font-weight: 600; cursor: pointer; border: none; font-family: inherit; }
+.confirm-btn-cancel { background: var(--md-surface-variant); color: var(--md-on-surface-variant); }
+.confirm-btn-ok { background: var(--md-primary); color: var(--md-on-primary); }
+
 /* ===== DARK MODE SURFACE OVERRIDES ===== */
 [data-theme="dark"] .plan-card       { background: #2B2930; border-color: #3D3840; }
 [data-theme="dark"] .settings-card   { background: #2B2930; border-color: #3D3840; }
@@ -1378,8 +1409,49 @@ button:focus:not(:focus-visible), input:focus:not(:focus-visible) { outline: non
 
 <canvas id="confetti-canvas" aria-hidden="true"></canvas>
 
+<!-- Toast notification -->
+<div id="app-toast" class="app-toast" role="status" aria-live="polite" hidden></div>
+
+<!-- Custom confirm dialog -->
+<div id="confirm-dialog" class="confirm-overlay" hidden>
+  <div class="confirm-box" role="alertdialog" aria-modal="true" aria-labelledby="confirm-title">
+    <p id="confirm-title" class="confirm-message"></p>
+    <div class="confirm-actions">
+      <button id="confirm-cancel-btn" class="confirm-btn confirm-btn-cancel">Cancel</button>
+      <button id="confirm-ok-btn" class="confirm-btn confirm-btn-ok">Confirm</button>
+    </div>
+  </div>
+</div>
 
 <script>
+
+/* ===== TOAST & CONFIRM UTILITIES ===== */
+let toastTimer = null;
+function showToast(msg, duration = 2500) {
+  const el = document.getElementById('app-toast');
+  el.textContent = msg;
+  el.hidden = false;
+  el.classList.add('visible');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => {
+    el.classList.remove('visible');
+    setTimeout(() => { el.hidden = true; }, 300);
+  }, duration);
+}
+
+function showConfirm(message, okLabel, onOk) {
+  const dialog = document.getElementById('confirm-dialog');
+  document.getElementById('confirm-title').textContent = message;
+  document.getElementById('confirm-ok-btn').textContent = okLabel || 'Confirm';
+  dialog.hidden = false;
+  const okBtn = document.getElementById('confirm-ok-btn');
+  const cancelBtn = document.getElementById('confirm-cancel-btn');
+  const close = () => { dialog.hidden = true; };
+  okBtn.onclick = () => { close(); onOk(); };
+  cancelBtn.onclick = close;
+  dialog.onclick = (e) => { if (e.target === dialog) close(); };
+  okBtn.focus();
+}
 
 /* ===== COLOR PRESETS ===== */
 const COLOR_PRESETS = {
@@ -1767,7 +1839,7 @@ function recomputeAllStats() {
 }
 
 function restoreStreak() {
-  if (state.streakFreezes <= 0) { alert('No streak freezes available!'); return; }
+  if (state.streakFreezes <= 0) { showToast('No streak freezes available!'); return; }
   const yesterday = new Date();
   yesterday.setDate(yesterday.getDate() - 1);
   const key = formatDateKey(yesterday);
@@ -2678,7 +2750,7 @@ function initSettings() {
   });
 
   document.getElementById('reset-btn').addEventListener('click', () => {
-    if (confirm('Are you sure you want to reset all your progress? This cannot be undone.')) {
+    showConfirm('Reset all progress? This will erase everything and cannot be undone.', 'Reset', () => {
       state = JSON.parse(JSON.stringify(DEFAULT_STATE));
       saveState();
       applyTheme(state.settings.themeMode);
@@ -2688,7 +2760,7 @@ function initSettings() {
       renderDashboard();
       updateHeaderName();
       showOnboarding();
-    }
+    });
   });
 }
 
@@ -2785,7 +2857,7 @@ window.addEventListener('load', function() {
   // Streak chip
   document.getElementById('header-streak').addEventListener('click', () => {
     if (state.streak === 0 && state.streakFreezes > 0) {
-      if (confirm(`Use a streak freeze to restore your streak? (${state.streakFreezes} remaining)`)) restoreStreak();
+      showConfirm(`Use a streak freeze to restore your streak? (${state.streakFreezes} remaining)`, 'Use Freeze', restoreStreak);
     }
   });
 
