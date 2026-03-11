@@ -210,6 +210,7 @@ a { color: var(--md-primary); text-decoration: none; }
 }
 .mercy-close:hover { background: rgba(255,255,255,.15); }
 .mercy-close .material-symbols-rounded { font-size: 18px; display: block; }
+.mercy-banner[hidden] { display: none; }
 
 /* ===== DATE ROW ===== */
 .date-row {
@@ -455,6 +456,41 @@ a { color: var(--md-primary); text-decoration: none; }
 }
 .notebook-empty-text { font-size: 15px; font-weight: 500; color: var(--md-on-surface-variant); margin-bottom: 8px; }
 .notebook-empty-hint { font-size: 13px; color: var(--md-on-surface-variant); opacity: .7; }
+
+.notebook-readings-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.notebook-reading-chip {
+  display: inline-block;
+  padding: 4px 10px;
+  font-size: 12px; font-weight: 500;
+  background: var(--md-surface-variant);
+  color: var(--md-on-surface-variant);
+  border-radius: 14px;
+}
+.notebook-category-empty {
+  font-size: 13px;
+  color: var(--md-on-surface-variant);
+  opacity: .6;
+  font-style: italic;
+  margin: 4px 0;
+}
+.notebook-app-textarea {
+  width: 100%;
+  min-height: 100px;
+  padding: 12px;
+  font-size: 14px; line-height: 1.7;
+  font-family: inherit;
+  color: var(--md-on-surface);
+  background: var(--md-surface-variant);
+  border: 1px solid var(--md-outline);
+  border-radius: var(--radius-md);
+  resize: vertical;
+  box-sizing: border-box;
+}
+.notebook-app-textarea::placeholder { color: var(--md-on-surface-variant); opacity: .5; }
 
 /* ===== HISTORY PAGE ===== */
 .analytics-grid {
@@ -1041,6 +1077,7 @@ button:focus:not(:focus-visible), input:focus:not(:focus-visible) { outline: non
   flex-shrink: 0;
 }
 .install-btn:hover { background: rgba(255,255,255,0.35); }
+.install-banner[hidden] { display: none; }
 
 /* ===== FONT SIZE CONTROL ===== */
 .font-size-btn {

@@ -860,61 +860,92 @@ function renderNotebook() {
     return;
   }
 
+  // 1. DATE HEADER
   const heading = document.createElement('h2');
   heading.className = 'notebook-date-heading';
   heading.textContent = dateObj.toLocaleDateString('en-US', opts);
   paper.appendChild(heading);
 
-  // Group by chapter reference
-  const byChapter = {};
-  dayHighlights.forEach(([ref, hl]) => {
-    const chapterRef = ref.includes(':') ? ref.split(':')[0] : ref;
-    if (!byChapter[chapterRef]) byChapter[chapterRef] = [];
-    byChapter[chapterRef].push({ ref, hl });
+  // 2. TODAY'S READINGS
+  const readings = getReadingPlan(dateKey);
+  const readingsSection = document.createElement('div');
+  readingsSection.className = 'notebook-section';
+  const readingsH = document.createElement('h3');
+  readingsH.className = 'notebook-chapter-heading';
+  readingsH.textContent = "\uD83D\uDCD6 Today\u2019s Readings";
+  readingsSection.appendChild(readingsH);
+  const chipsWrap = document.createElement('div');
+  chipsWrap.className = 'notebook-readings-chips';
+  readings.forEach(r => {
+    const chip = document.createElement('span');
+    chip.className = 'notebook-reading-chip';
+    chip.textContent = `${r.book} ${r.chapter}`;
+    chipsWrap.appendChild(chip);
   });
+  readingsSection.appendChild(chipsWrap);
+  paper.appendChild(readingsSection);
 
-  Object.entries(byChapter).forEach(([chapterRef, items]) => {
+  // 3–6. HIGHLIGHT CATEGORIES (read-only)
+  const categories = [
+    { type: 'promise',   label: 'Promises \uD83E\uDD1D' },
+    { type: 'command',   label: 'Commands \uD83D\uDCCB' },
+    { type: 'warning',   label: 'Warnings \u26A0\uFE0F' },
+    { type: 'principle', label: 'Principles \uD83D\uDCA1' }
+  ];
+  categories.forEach(cat => {
+    const items = dayHighlights.filter(([, v]) => v.type === cat.type);
     const section = document.createElement('div');
     section.className = 'notebook-section';
-    const chapH = document.createElement('h3');
-    chapH.className = 'notebook-chapter-heading';
-    chapH.textContent = chapterRef;
-    section.appendChild(chapH);
+    const catH = document.createElement('h3');
+    catH.className = 'notebook-chapter-heading';
+    catH.textContent = cat.label;
+    section.appendChild(catH);
 
-    items.forEach(({ ref, hl }) => {
-      const hlEl = document.createElement('div');
-      hlEl.className = `notebook-highlight hl-${hl.type || 'general'}`;
-
-      const verseRef = document.createElement('span');
-      verseRef.className = 'notebook-verse-ref';
-      verseRef.textContent = ref;
-
-      const verseText = document.createElement('p');
-      verseText.className = 'notebook-verse-text';
-      verseText.textContent = hl.text || '';
-
-      const badge = document.createElement('span');
-      badge.className = `notebook-type-badge hl-badge-${hl.type || 'general'}`;
-      badge.textContent = (hl.type || 'general').charAt(0).toUpperCase() + (hl.type || 'general').slice(1);
-
-      hlEl.appendChild(verseRef); hlEl.appendChild(verseText); hlEl.appendChild(badge);
-      section.appendChild(hlEl);
-    });
+    if (items.length === 0) {
+      const emptyMsg = document.createElement('p');
+      emptyMsg.className = 'notebook-category-empty';
+      emptyMsg.textContent = `No ${cat.type} highlights yet.`;
+      section.appendChild(emptyMsg);
+    } else {
+      items.forEach(([ref, hl]) => {
+        const hlEl = document.createElement('div');
+        hlEl.className = `notebook-highlight hl-${hl.type}`;
+        const verseRef = document.createElement('span');
+        verseRef.className = 'notebook-verse-ref';
+        verseRef.textContent = ref;
+        const verseText = document.createElement('p');
+        verseText.className = 'notebook-verse-text';
+        verseText.textContent = hl.text || '';
+        hlEl.appendChild(verseRef);
+        hlEl.appendChild(verseText);
+        section.appendChild(hlEl);
+      });
+    }
     paper.appendChild(section);
   });
 
-  if (journalEntry) {
-    const jSection = document.createElement('div');
-    jSection.className = 'notebook-section notebook-journal';
-    const jH = document.createElement('h3');
-    jH.className = 'notebook-chapter-heading';
-    jH.textContent = '\u270D\uFE0F Journal';
-    const jText = document.createElement('p');
-    jText.className = 'notebook-journal-text';
-    jText.textContent = journalEntry;
-    jSection.appendChild(jH); jSection.appendChild(jText);
-    paper.appendChild(jSection);
-  }
+  // 7. APPLICATION ✍️
+  const appSection = document.createElement('div');
+  appSection.className = 'notebook-section notebook-journal';
+  const appH = document.createElement('h3');
+  appH.className = 'notebook-chapter-heading';
+  appH.textContent = 'Application \u270D\uFE0F';
+  appSection.appendChild(appH);
+  const appTextarea = document.createElement('textarea');
+  appTextarea.className = 'notebook-app-textarea';
+  appTextarea.placeholder = 'Write your personal reflection, prayer, or notes here\u2026';
+  appTextarea.rows = 5;
+  appTextarea.value = journalEntry;
+  let nbSaveTimer = null;
+  appTextarea.addEventListener('input', () => {
+    clearTimeout(nbSaveTimer);
+    nbSaveTimer = setTimeout(() => {
+      state.journal[dateKey] = appTextarea.value;
+      saveState();
+    }, 500);
+  });
+  appSection.appendChild(appTextarea);
+  paper.appendChild(appSection);
 }
 
 /* ===== BIBLE MODAL ===== */
@@ -1486,11 +1517,10 @@ let deferredInstallPrompt = null;
 window.addEventListener('beforeinstallprompt', e => {
   e.preventDefault();
   deferredInstallPrompt = e;
-  // Show only if not dismissed recently and not in standalone
-  const dismissed = getStorage('dtwg_install_dismissed');
-  const tooSoon   = dismissed && Date.now() - dismissed < 7 * 24 * 60 * 60 * 1000;
+  // Show only if not dismissed and not in standalone
+  const dismissed = getStorage('pwa-banner-dismissed');
   const standalone = window.matchMedia('(display-mode: standalone)').matches;
-  if (!tooSoon && !standalone) {
+  if (!dismissed && !standalone) {
     const banner = document.getElementById('install-banner');
     if (banner) banner.hidden = false;
   }
@@ -1515,7 +1545,8 @@ function installApp() {
 function dismissInstallBanner() {
   const banner = document.getElementById('install-banner');
   if (banner) banner.hidden = true;
-  setStorage('dtwg_install_dismissed', Date.now());
+  deferredInstallPrompt = null;
+  setStorage('pwa-banner-dismissed', true);
 }
 
 /* ===== NAVIGATION & KEYBOARD ===== */
