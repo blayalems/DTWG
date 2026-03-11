@@ -1008,8 +1008,12 @@ function exportNotebookPDF() {
   ];
 
   // Build HTML for the print window
+  function esc(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+  }
+
   let html = `<!DOCTYPE html><html><head><meta charset="utf-8">
-<title>DTWG Notebook - ${dateStr}</title>
+<title>DTWG Notebook - ${esc(dateStr)}</title>
 <style>
   body { font-family: Georgia, 'Times New Roman', serif; max-width: 700px; margin: 0 auto; padding: 32px 24px; color: #1C1B1F; }
   h1 { font-size: 22px; margin-bottom: 4px; }
@@ -1026,21 +1030,21 @@ function exportNotebookPDF() {
 </style></head><body>`;
 
   html += `<h1>\uD83D\uDCD6 Daily Time with God</h1>`;
-  html += `<p style="margin:0 0 16px;color:#555;">${dateStr}</p>`;
+  html += `<p style="margin:0 0 16px;color:#555;">${esc(dateStr)}</p>`;
 
   html += `<h2>\uD83D\uDCD6 Today\u2019s Readings</h2><div class="readings">`;
-  readings.forEach(r => { html += `<span class="chip">${r.book} ${r.chapter}</span>`; });
+  readings.forEach(r => { html += `<span class="chip">${esc(r.book)} ${esc(r.chapter)}</span>`; });
   html += `</div>`;
 
   categories.forEach(cat => {
-    html += `<h2>${cat.label}</h2>`;
+    html += `<h2>${esc(cat.label)}</h2>`;
     const items = dayHighlights.filter(([, v]) => v.type === cat.type);
     if (items.length === 0) {
-      html += `<p class="empty">No ${cat.type} highlights yet.</p>`;
+      html += `<p class="empty">No ${esc(cat.type)} highlights yet.</p>`;
     } else {
       items.forEach(([ref, hl]) => {
-        html += `<div class="hl"><div class="hl-ref">${ref}</div>`;
-        if (hl.text) html += `<div class="hl-text">${hl.text}</div>`;
+        html += `<div class="hl"><div class="hl-ref">${esc(ref)}</div>`;
+        if (hl.text) html += `<div class="hl-text">${esc(hl.text)}</div>`;
         html += `</div>`;
       });
     }
@@ -1048,7 +1052,7 @@ function exportNotebookPDF() {
 
   html += `<h2>Application \u270D\uFE0F</h2>`;
   if (journalEntry) {
-    html += `<div class="journal">${journalEntry.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>`;
+    html += `<div class="journal">${esc(journalEntry)}</div>`;
   } else {
     html += `<p class="empty">No application entry yet.</p>`;
   }
@@ -1057,6 +1061,10 @@ function exportNotebookPDF() {
   html += `</body></html>`;
 
   const printWin = window.open('', '_blank');
+  if (!printWin) {
+    showToast('Please allow pop-ups to export PDF');
+    return;
+  }
   printWin.document.write(html);
   printWin.document.close();
   printWin.onload = () => { printWin.print(); };
