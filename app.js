@@ -696,7 +696,6 @@ function renderCalendar() {
     const dateKey = `${calendarYear}-${String(calendarMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
     const cell = document.createElement('div');
     cell.className = 'cal-cell';
-    cell.textContent = d;
 
     const comp = state.completed[dateKey];
     const isFrozen = (state.frozenDays || []).includes(dateKey);
@@ -705,9 +704,37 @@ function renderCalendar() {
       cell.classList.add('frozen');
     } else if (comp && comp.length > 0) {
       const readings = getReadingPlan(dateKey);
-      cell.classList.add(comp.length >= readings.length ? 'complete' : 'partial');
+      const total = readings.length;
+      const done = Math.min(comp.length, total);
+      cell.classList.add(done >= total ? 'complete' : 'partial');
+
+      // SVG ring progress
+      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      svg.setAttribute('class', 'cal-ring');
+      svg.setAttribute('viewBox', '0 0 36 36');
+      const bgCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      bgCircle.setAttribute('cx', '18');
+      bgCircle.setAttribute('cy', '18');
+      bgCircle.setAttribute('r', '15.9');
+      bgCircle.setAttribute('class', 'cal-ring-bg');
+      svg.appendChild(bgCircle);
+      const prog = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      prog.setAttribute('cx', '18');
+      prog.setAttribute('cy', '18');
+      prog.setAttribute('r', '15.9');
+      prog.setAttribute('class', 'cal-ring-fill');
+      const circ = 2 * Math.PI * 15.9;
+      const pct = done / total;
+      prog.setAttribute('stroke-dasharray', `${pct * circ} ${circ}`);
+      svg.appendChild(prog);
+      cell.appendChild(svg);
     }
     if (dateKey === today) cell.classList.add('today');
+
+    const num = document.createElement('span');
+    num.className = 'cal-day-num';
+    num.textContent = d;
+    cell.appendChild(num);
 
     cell.addEventListener('click', () => { viewedDate = dateKey; switchPage('dashboard'); });
     grid.appendChild(cell);
@@ -976,6 +1003,11 @@ async function openBibleModal(book, chapter, idx) {
   const isChecked = (state.completed[dateKey] || []).includes(idx);
   updateModalActionBtn(isChecked);
 
+  // Disable prev/next at reading plan boundaries
+  const readings = getReadingPlan(viewedDate);
+  document.getElementById('modal-prev-btn').disabled = (idx <= 0);
+  document.getElementById('modal-next-btn').disabled = (idx >= readings.length - 1);
+
   // Scroll to top
   document.getElementById('modal-body').scrollTop = 0;
 
@@ -1164,29 +1196,11 @@ function closeModal() {
 }
 
 function navigateBibleModal(direction) {
-  if (!currentModalReading) return;
-  const { book, chapter } = currentModalReading;
-
-  const isOT  = OT_BOOKS.some(b => b[0] === book);
-  const books = isOT ? OT_BOOKS : NT_BOOKS;
-  const bookData = books.find(b => b[0] === book);
-  if (!bookData) return;
-
-  const maxChapter = bookData[1];
-  let newBook = book, newChapter = chapter + direction;
-
-  if (newChapter < 1) {
-    const bookIdx = books.findIndex(b => b[0] === book);
-    if (bookIdx > 0) { newBook = books[bookIdx-1][0]; newChapter = books[bookIdx-1][1]; }
-    else newChapter = 1;
-  } else if (newChapter > maxChapter) {
-    const bookIdx = books.findIndex(b => b[0] === book);
-    if (bookIdx < books.length - 1) { newBook = books[bookIdx+1][0]; newChapter = 1; }
-    else newChapter = maxChapter;
-  }
-
-  currentModalReading = { book: newBook, chapter: newChapter };
-  openBibleModal(newBook, newChapter, currentModalIdx);
+  const readings = getReadingPlan(viewedDate);
+  const newIdx = currentModalIdx + direction;
+  if (newIdx < 0 || newIdx >= readings.length) return;
+  const reading = readings[newIdx];
+  openBibleModal(reading.book, reading.chapter, newIdx);
 }
 
 function handleModalAction() {

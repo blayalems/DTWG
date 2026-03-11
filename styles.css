@@ -549,13 +549,36 @@ a { color: var(--md-primary); text-decoration: none; }
   cursor: pointer;
   color: var(--md-on-surface);
   transition: background var(--transition), color var(--transition);
+  position: relative;
 }
+.cal-day-num { position: relative; z-index: 1; }
 .cal-cell:hover:not(.empty) { background: var(--md-surface-variant); }
 .cal-cell.empty { cursor: default; }
-.cal-cell.today { font-weight: 700; color: var(--md-primary); background: rgba(103,80,164,.12); }
-.cal-cell.complete { background: var(--md-primary); color: var(--md-on-primary); font-weight: 600; }
-.cal-cell.partial { background: rgba(103,80,164,.35); color: var(--md-primary); }
+.cal-cell.today { font-weight: 700; color: var(--md-primary); }
+.cal-cell.today .cal-day-num { color: var(--md-primary); }
+.cal-cell.complete { color: var(--md-on-primary); }
+.cal-cell.complete .cal-day-num { color: var(--md-primary); font-weight: 700; }
+.cal-cell.partial .cal-day-num { color: var(--md-on-surface); font-weight: 600; }
 .cal-cell.frozen { background: #64B5F6; color: #0D47A1; font-weight: 600; }
+
+.cal-ring {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  transform: rotate(-90deg);
+  pointer-events: none;
+}
+.cal-ring-bg {
+  fill: none;
+  stroke: var(--md-surface-variant);
+  stroke-width: 3;
+}
+.cal-ring-fill {
+  fill: none;
+  stroke: var(--md-primary);
+  stroke-width: 3;
+  stroke-linecap: round;
+}
 
 /* History tabs */
 .history-tabs {
