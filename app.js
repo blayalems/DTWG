@@ -38,10 +38,10 @@ const COLOR_PRESETS = {
 
 const DEFAULT_HL_COLORS = {
   purple:{ general:'#E8D5FF', promise:'#C8E6C9', command:'#BBDEFB', warning:'#FFCCBC', principle:'#FFF9C4' },
-  blue:  { general:'#BBDEFB', promise:'#C8E6C9', command:'#D1C4E9', warning:'#FFCCBC', principle:'#FFF9C4' },
-  green: { general:'#C8E6C9', promise:'#E8D5FF', command:'#BBDEFB', warning:'#FFCCBC', principle:'#FFF9C4' },
-  amber: { general:'#FFE0B2', promise:'#C8E6C9', command:'#BBDEFB', warning:'#FFCDD2', principle:'#FFF9C4' },
-  rose:  { general:'#FCE4EC', promise:'#C8E6C9', command:'#BBDEFB', warning:'#FFCCBC', principle:'#FFF9C4' }
+  blue:  { general:'#BBDEFB', promise:'#B2DFDB', command:'#D1C4E9', warning:'#FFE0B2', principle:'#E1F5FE' },
+  green: { general:'#C8E6C9', promise:'#DCEDC8', command:'#B2EBF2', warning:'#FFCCBC', principle:'#F0F4C3' },
+  amber: { general:'#FFE0B2', promise:'#FFECB3', command:'#FFE082', warning:'#FFCDD2', principle:'#FFF8E1' },
+  rose:  { general:'#FCE4EC', promise:'#F8BBD0', command:'#E1BEE7', warning:'#FFCDD2', principle:'#FFF9C4' }
 };
 
 /* ===== THEME & COLOR SYSTEM ===== */
@@ -134,11 +134,20 @@ function syncHlWithTheme() {
   state.settings.hlColors = { ...defaults };
   saveState();
   applyHighlightColors(state.settings.hlColors);
+  updateHlPickerUI();
+}
+
+function updateHlPickerUI() {
+  ['general','promise','command','warning','principle'].forEach(type => {
+    const btn   = document.getElementById(`hl-btn-${type}`);
+    const input = document.getElementById(`hl-color-${type}`);
+    if (btn)   btn.style.background = state.settings.hlColors[type] || '';
+    if (input) input.value = state.settings.hlColors[type] || '#E8D5FF';
+  });
 }
 
 function applyFontSize(size) {
   document.documentElement.style.setProperty('--user-font-size', size + 'px');
-  document.documentElement.style.fontSize = size + 'px';
 }
 
 /* ===== AUDIO ENGINE ===== */
@@ -696,7 +705,6 @@ function renderCalendar() {
     const dateKey = `${calendarYear}-${String(calendarMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
     const cell = document.createElement('div');
     cell.className = 'cal-cell';
-    cell.textContent = d;
 
     const comp = state.completed[dateKey];
     const isFrozen = (state.frozenDays || []).includes(dateKey);
@@ -705,9 +713,37 @@ function renderCalendar() {
       cell.classList.add('frozen');
     } else if (comp && comp.length > 0) {
       const readings = getReadingPlan(dateKey);
-      cell.classList.add(comp.length >= readings.length ? 'complete' : 'partial');
+      const total = readings.length;
+      const done = Math.min(comp.length, total);
+      cell.classList.add(done >= total ? 'complete' : 'partial');
+
+      // SVG ring progress
+      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      svg.setAttribute('class', 'cal-ring');
+      svg.setAttribute('viewBox', '0 0 36 36');
+      const bgCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      bgCircle.setAttribute('cx', '18');
+      bgCircle.setAttribute('cy', '18');
+      bgCircle.setAttribute('r', '15.9');
+      bgCircle.setAttribute('class', 'cal-ring-bg');
+      svg.appendChild(bgCircle);
+      const prog = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      prog.setAttribute('cx', '18');
+      prog.setAttribute('cy', '18');
+      prog.setAttribute('r', '15.9');
+      prog.setAttribute('class', 'cal-ring-fill');
+      const circ = 2 * Math.PI * 15.9;
+      const pct = done / total;
+      prog.setAttribute('stroke-dasharray', `${pct * circ} ${circ}`);
+      svg.appendChild(prog);
+      cell.appendChild(svg);
     }
     if (dateKey === today) cell.classList.add('today');
+
+    const num = document.createElement('span');
+    num.className = 'cal-day-num';
+    num.textContent = d;
+    cell.appendChild(num);
 
     cell.addEventListener('click', () => { viewedDate = dateKey; switchPage('dashboard'); });
     grid.appendChild(cell);
@@ -844,6 +880,8 @@ function renderNotebook() {
   const journalEntry  = state.journal[dateKey] || '';
 
   if (dayHighlights.length === 0 && !journalEntry) {
+    const exportBtn = document.getElementById('nb-export-btn');
+    if (exportBtn) exportBtn.hidden = true;
     const empty = document.createElement('div');
     empty.className = 'notebook-empty';
     const icon = document.createElement('span');
@@ -860,61 +898,176 @@ function renderNotebook() {
     return;
   }
 
+  // 1. DATE HEADER
   const heading = document.createElement('h2');
   heading.className = 'notebook-date-heading';
   heading.textContent = dateObj.toLocaleDateString('en-US', opts);
   paper.appendChild(heading);
 
-  // Group by chapter reference
-  const byChapter = {};
-  dayHighlights.forEach(([ref, hl]) => {
-    const chapterRef = ref.includes(':') ? ref.split(':')[0] : ref;
-    if (!byChapter[chapterRef]) byChapter[chapterRef] = [];
-    byChapter[chapterRef].push({ ref, hl });
+  // 2. TODAY'S READINGS
+  const readings = getReadingPlan(dateKey);
+  const readingsSection = document.createElement('div');
+  readingsSection.className = 'notebook-section';
+  const readingsH = document.createElement('h3');
+  readingsH.className = 'notebook-chapter-heading';
+  readingsH.textContent = '\uD83D\uDCD6 Today\u2019s Readings';
+  readingsSection.appendChild(readingsH);
+  const chipsWrap = document.createElement('div');
+  chipsWrap.className = 'notebook-readings-chips';
+  readings.forEach(r => {
+    const chip = document.createElement('span');
+    chip.className = 'notebook-reading-chip';
+    chip.textContent = `${r.book} ${r.chapter}`;
+    chipsWrap.appendChild(chip);
   });
+  readingsSection.appendChild(chipsWrap);
+  paper.appendChild(readingsSection);
 
-  Object.entries(byChapter).forEach(([chapterRef, items]) => {
+  // 3–6. HIGHLIGHT CATEGORIES (read-only)
+  const categories = [
+    { type: 'promise',   label: 'Promises \uD83E\uDD1D' },
+    { type: 'command',   label: 'Commands \uD83D\uDCCB' },
+    { type: 'warning',   label: 'Warnings \u26A0\uFE0F' },
+    { type: 'principle', label: 'Principles \uD83D\uDCA1' }
+  ];
+  categories.forEach(cat => {
+    const items = dayHighlights.filter(([, v]) => v.type === cat.type);
     const section = document.createElement('div');
     section.className = 'notebook-section';
-    const chapH = document.createElement('h3');
-    chapH.className = 'notebook-chapter-heading';
-    chapH.textContent = chapterRef;
-    section.appendChild(chapH);
+    const catH = document.createElement('h3');
+    catH.className = 'notebook-chapter-heading';
+    catH.textContent = cat.label;
+    section.appendChild(catH);
 
-    items.forEach(({ ref, hl }) => {
-      const hlEl = document.createElement('div');
-      hlEl.className = `notebook-highlight hl-${hl.type || 'general'}`;
-
-      const verseRef = document.createElement('span');
-      verseRef.className = 'notebook-verse-ref';
-      verseRef.textContent = ref;
-
-      const verseText = document.createElement('p');
-      verseText.className = 'notebook-verse-text';
-      verseText.textContent = hl.text || '';
-
-      const badge = document.createElement('span');
-      badge.className = `notebook-type-badge hl-badge-${hl.type || 'general'}`;
-      badge.textContent = (hl.type || 'general').charAt(0).toUpperCase() + (hl.type || 'general').slice(1);
-
-      hlEl.appendChild(verseRef); hlEl.appendChild(verseText); hlEl.appendChild(badge);
-      section.appendChild(hlEl);
-    });
+    if (items.length === 0) {
+      const emptyMsg = document.createElement('p');
+      emptyMsg.className = 'notebook-category-empty';
+      emptyMsg.textContent = `No ${cat.type} highlights yet.`;
+      section.appendChild(emptyMsg);
+    } else {
+      items.forEach(([ref, hl]) => {
+        const hlEl = document.createElement('div');
+        hlEl.className = `notebook-highlight hl-${hl.type}`;
+        const verseRef = document.createElement('span');
+        verseRef.className = 'notebook-verse-ref';
+        verseRef.textContent = ref;
+        const verseText = document.createElement('p');
+        verseText.className = 'notebook-verse-text';
+        verseText.textContent = hl.text || '';
+        hlEl.appendChild(verseRef);
+        hlEl.appendChild(verseText);
+        section.appendChild(hlEl);
+      });
+    }
     paper.appendChild(section);
   });
 
-  if (journalEntry) {
-    const jSection = document.createElement('div');
-    jSection.className = 'notebook-section notebook-journal';
-    const jH = document.createElement('h3');
-    jH.className = 'notebook-chapter-heading';
-    jH.textContent = '\u270D\uFE0F Journal';
-    const jText = document.createElement('p');
-    jText.className = 'notebook-journal-text';
-    jText.textContent = journalEntry;
-    jSection.appendChild(jH); jSection.appendChild(jText);
-    paper.appendChild(jSection);
+  // 7. APPLICATION ✍️
+  const appSection = document.createElement('div');
+  appSection.className = 'notebook-section notebook-journal';
+  const appH = document.createElement('h3');
+  appH.className = 'notebook-chapter-heading';
+  appH.textContent = 'Application \u270D\uFE0F';
+  appSection.appendChild(appH);
+  const appTextarea = document.createElement('textarea');
+  appTextarea.className = 'notebook-app-textarea';
+  appTextarea.placeholder = 'Write your personal reflection, prayer, or notes here\u2026';
+  appTextarea.rows = 5;
+  appTextarea.value = journalEntry;
+  let nbSaveTimer = null;
+  appTextarea.addEventListener('input', () => {
+    clearTimeout(nbSaveTimer);
+    nbSaveTimer = setTimeout(() => {
+      state.journal[dateKey] = appTextarea.value;
+      saveState();
+    }, 500);
+  });
+  appSection.appendChild(appTextarea);
+  paper.appendChild(appSection);
+
+  // Show export button when notebook has content
+  const exportBtn = document.getElementById('nb-export-btn');
+  if (exportBtn) exportBtn.hidden = false;
+}
+
+function exportNotebookPDF() {
+  const dateKey = notebookDate;
+  const dateObj = new Date(dateKey + 'T00:00:00');
+  const opts = { weekday:'long', month:'long', day:'numeric', year:'numeric' };
+  const dateStr = dateObj.toLocaleDateString('en-US', opts);
+
+  const dayHighlights = Object.entries(state.highlights || {}).filter(([,v]) => v.date === dateKey);
+  const journalEntry  = state.journal[dateKey] || '';
+  const readings = getReadingPlan(dateKey);
+
+  const categories = [
+    { type: 'promise',   label: 'Promises \uD83E\uDD1D' },
+    { type: 'command',   label: 'Commands \uD83D\uDCCB' },
+    { type: 'warning',   label: 'Warnings \u26A0\uFE0F' },
+    { type: 'principle', label: 'Principles \uD83D\uDCA1' }
+  ];
+
+  // Build HTML for the print window
+  function esc(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
   }
+
+  let html = `<!DOCTYPE html><html><head><meta charset="utf-8">
+<title>DTWG Notebook - ${esc(dateStr)}</title>
+<style>
+  body { font-family: Georgia, 'Times New Roman', serif; max-width: 700px; margin: 0 auto; padding: 32px 24px; color: #1C1B1F; }
+  h1 { font-size: 22px; margin-bottom: 4px; }
+  h2 { font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #ccc; padding-bottom: 4px; }
+  .readings { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+  .chip { display: inline-block; padding: 3px 10px; font-size: 12px; background: #eee; border-radius: 12px; }
+  .hl { margin: 6px 0; padding: 8px 10px; border-left: 3px solid #6750A4; background: #f9f7fd; border-radius: 4px; }
+  .hl-ref { font-weight: bold; font-size: 13px; color: #6750A4; }
+  .hl-text { font-size: 14px; margin-top: 2px; }
+  .empty { font-style: italic; color: #888; font-size: 13px; }
+  .journal { white-space: pre-wrap; font-size: 14px; line-height: 1.7; background: #f5f5f5; padding: 12px; border-radius: 6px; }
+  .footer { margin-top: 24px; font-size: 11px; color: #aaa; text-align: center; }
+  @media print { body { padding: 0; } }
+</style></head><body>`;
+
+  html += `<h1>\uD83D\uDCD6 Daily Time with God</h1>`;
+  html += `<p style="margin:0 0 16px;color:#555;">${esc(dateStr)}</p>`;
+
+  html += `<h2>\uD83D\uDCD6 Today\u2019s Readings</h2><div class="readings">`;
+  readings.forEach(r => { html += `<span class="chip">${esc(r.book)} ${esc(r.chapter)}</span>`; });
+  html += `</div>`;
+
+  categories.forEach(cat => {
+    html += `<h2>${esc(cat.label)}</h2>`;
+    const items = dayHighlights.filter(([, v]) => v.type === cat.type);
+    if (items.length === 0) {
+      html += `<p class="empty">No ${esc(cat.type)} highlights yet.</p>`;
+    } else {
+      items.forEach(([ref, hl]) => {
+        html += `<div class="hl"><div class="hl-ref">${esc(ref)}</div>`;
+        if (hl.text) html += `<div class="hl-text">${esc(hl.text)}</div>`;
+        html += `</div>`;
+      });
+    }
+  });
+
+  html += `<h2>Application \u270D\uFE0F</h2>`;
+  if (journalEntry) {
+    html += `<div class="journal">${esc(journalEntry)}</div>`;
+  } else {
+    html += `<p class="empty">No application entry yet.</p>`;
+  }
+
+  html += `<div class="footer">Exported from Daily Time with God</div>`;
+  html += `</body></html>`;
+
+  const printWin = window.open('', '_blank');
+  if (!printWin) {
+    showToast('Please allow pop-ups to export PDF');
+    return;
+  }
+  printWin.document.write(html);
+  printWin.document.close();
+  printWin.onload = () => { printWin.print(); };
 }
 
 /* ===== BIBLE MODAL ===== */
@@ -936,7 +1089,7 @@ async function openBibleModal(book, chapter, idx) {
   const modal = document.getElementById('bible-modal');
   modal.removeAttribute('hidden');
 
-  document.getElementById('modal-title').textContent = `${book} ${chapter}`;
+  document.getElementById('modal-title').textContent = `${book} ${chapter} (${(state.settings.translation || 'web').toUpperCase()})`;
   document.getElementById('modal-loading').style.display = 'flex';
   document.getElementById('modal-verses').style.display  = 'none';
   document.getElementById('modal-verses').innerHTML = '';
@@ -944,6 +1097,11 @@ async function openBibleModal(book, chapter, idx) {
   const dateKey  = viewedDate;
   const isChecked = (state.completed[dateKey] || []).includes(idx);
   updateModalActionBtn(isChecked);
+
+  // Disable prev/next at reading plan boundaries
+  const readings = getReadingPlan(viewedDate);
+  document.getElementById('modal-prev-btn').disabled = (idx <= 0);
+  document.getElementById('modal-next-btn').disabled = (idx >= readings.length - 1);
 
   // Scroll to top
   document.getElementById('modal-body').scrollTop = 0;
@@ -1024,7 +1182,7 @@ function renderBibleVerses(data, book, chapter) {
     versesEl.appendChild(p);
   });
 
-  document.getElementById('modal-title').textContent = `${book} ${chapter}`;
+  document.getElementById('modal-title').textContent = `${book} ${chapter} (${(state.settings.translation || 'web').toUpperCase()})`;
 }
 
 /* ===== HIGHLIGHT MENU (with labels) ===== */
@@ -1133,29 +1291,11 @@ function closeModal() {
 }
 
 function navigateBibleModal(direction) {
-  if (!currentModalReading) return;
-  const { book, chapter } = currentModalReading;
-
-  const isOT  = OT_BOOKS.some(b => b[0] === book);
-  const books = isOT ? OT_BOOKS : NT_BOOKS;
-  const bookData = books.find(b => b[0] === book);
-  if (!bookData) return;
-
-  const maxChapter = bookData[1];
-  let newBook = book, newChapter = chapter + direction;
-
-  if (newChapter < 1) {
-    const bookIdx = books.findIndex(b => b[0] === book);
-    if (bookIdx > 0) { newBook = books[bookIdx-1][0]; newChapter = books[bookIdx-1][1]; }
-    else newChapter = 1;
-  } else if (newChapter > maxChapter) {
-    const bookIdx = books.findIndex(b => b[0] === book);
-    if (bookIdx < books.length - 1) { newBook = books[bookIdx+1][0]; newChapter = 1; }
-    else newChapter = maxChapter;
-  }
-
-  currentModalReading = { book: newBook, chapter: newChapter };
-  openBibleModal(newBook, newChapter, currentModalIdx);
+  const readings = getReadingPlan(viewedDate);
+  const newIdx = currentModalIdx + direction;
+  if (newIdx < 0 || newIdx >= readings.length) return;
+  const reading = readings[newIdx];
+  openBibleModal(reading.book, reading.chapter, newIdx);
 }
 
 function handleModalAction() {
@@ -1319,6 +1459,11 @@ function saveOnboarding() {
 
   saveState();
   document.getElementById('onboarding-modal').setAttribute('hidden', '');
+  // Sync settings UI with onboarding selections
+  document.getElementById('translation-select').value = translation;
+  document.querySelectorAll('#color-palette .color-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.color === colorName);
+  });
   applyHighlightColors(state.settings.hlColors);
   renderDashboard();
   updateHeaderName();
@@ -1485,15 +1630,13 @@ let deferredInstallPrompt = null;
 
 window.addEventListener('beforeinstallprompt', e => {
   e.preventDefault();
-  deferredInstallPrompt = e;
-  // Show only if not dismissed recently and not in standalone
-  const dismissed = getStorage('dtwg_install_dismissed');
-  const tooSoon   = dismissed && Date.now() - dismissed < 7 * 24 * 60 * 60 * 1000;
+  // Show only if not dismissed and not in standalone
+  const dismissed = getStorage('pwa-banner-dismissed');
   const standalone = window.matchMedia('(display-mode: standalone)').matches;
-  if (!tooSoon && !standalone) {
-    const banner = document.getElementById('install-banner');
-    if (banner) banner.hidden = false;
-  }
+  if (dismissed || standalone) return;
+  deferredInstallPrompt = e;
+  const banner = document.getElementById('install-banner');
+  if (banner) banner.hidden = false;
 });
 
 window.addEventListener('appinstalled', () => {
@@ -1515,7 +1658,8 @@ function installApp() {
 function dismissInstallBanner() {
   const banner = document.getElementById('install-banner');
   if (banner) banner.hidden = true;
-  setStorage('dtwg_install_dismissed', Date.now());
+  deferredInstallPrompt = null;
+  setStorage('pwa-banner-dismissed', true);
 }
 
 /* ===== NAVIGATION & KEYBOARD ===== */
@@ -1580,6 +1724,8 @@ window.addEventListener('load', function() {
       renderNotebook();
     }
   });
+
+  document.getElementById('nb-export-btn').addEventListener('click', () => exportNotebookPDF());
 
   // Calendar nav
   document.getElementById('cal-prev').addEventListener('click', () => changeMonth(-1));
