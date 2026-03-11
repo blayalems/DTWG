@@ -1,8 +1,10 @@
 // Service Worker for Daily Time with God (DTWG)
-const CACHE_NAME = 'dtwg-cache-v1';
+const CACHE_NAME = 'dtwg-cache-v2';
 
 const APP_SHELL = [
   './index.html',
+  './styles.css',
+  './app.js',
   './manifest.json',
   'https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap',
   'https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,1,0'
