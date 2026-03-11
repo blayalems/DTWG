@@ -1033,6 +1033,15 @@ a { color: var(--md-primary); text-decoration: none; }
   #page-dashboard .mercy-banner,
   #page-dashboard .journal-section { max-width: 720px; margin-left: auto; margin-right: auto; }
 
+  #page-history .analytics-grid,
+  #page-history .calendar-section,
+  #page-history .history-tabs,
+  #page-history .filter-chips,
+  #page-history .history-list { max-width: 720px; margin-left: auto; margin-right: auto; }
+
+  #page-notebook .date-row,
+  #page-notebook .notebook-paper { max-width: 720px; margin-left: auto; margin-right: auto; }
+
   .modal-overlay { align-items: center; justify-content: center; }
   .modal-content { border-radius: var(--radius-xl); max-width: 560px; max-height: 88vh; }
 }

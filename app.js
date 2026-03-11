@@ -967,7 +967,7 @@ async function openBibleModal(book, chapter, idx) {
   const modal = document.getElementById('bible-modal');
   modal.removeAttribute('hidden');
 
-  document.getElementById('modal-title').textContent = `${book} ${chapter}`;
+  document.getElementById('modal-title').textContent = `${book} ${chapter} (${(state.settings.translation || 'web').toUpperCase()})`;
   document.getElementById('modal-loading').style.display = 'flex';
   document.getElementById('modal-verses').style.display  = 'none';
   document.getElementById('modal-verses').innerHTML = '';
@@ -1055,7 +1055,7 @@ function renderBibleVerses(data, book, chapter) {
     versesEl.appendChild(p);
   });
 
-  document.getElementById('modal-title').textContent = `${book} ${chapter}`;
+  document.getElementById('modal-title').textContent = `${book} ${chapter} (${(state.settings.translation || 'web').toUpperCase()})`;
 }
 
 /* ===== HIGHLIGHT MENU (with labels) ===== */
@@ -1350,6 +1350,8 @@ function saveOnboarding() {
 
   saveState();
   document.getElementById('onboarding-modal').setAttribute('hidden', '');
+  // Sync settings UI with onboarding selections
+  document.getElementById('translation-select').value = translation;
   applyHighlightColors(state.settings.hlColors);
   renderDashboard();
   updateHeaderName();
@@ -1516,14 +1518,13 @@ let deferredInstallPrompt = null;
 
 window.addEventListener('beforeinstallprompt', e => {
   e.preventDefault();
-  deferredInstallPrompt = e;
   // Show only if not dismissed and not in standalone
   const dismissed = getStorage('pwa-banner-dismissed');
   const standalone = window.matchMedia('(display-mode: standalone)').matches;
-  if (!dismissed && !standalone) {
-    const banner = document.getElementById('install-banner');
-    if (banner) banner.hidden = false;
-  }
+  if (dismissed || standalone) return;
+  deferredInstallPrompt = e;
+  const banner = document.getElementById('install-banner');
+  if (banner) banner.hidden = false;
 });
 
 window.addEventListener('appinstalled', () => {
