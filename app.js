@@ -899,7 +899,7 @@ function renderNotebook() {
   readingsSection.className = 'notebook-section';
   const readingsH = document.createElement('h3');
   readingsH.className = 'notebook-chapter-heading';
-  readingsH.textContent = "\uD83D\uDCD6 Today\u2019s Readings";
+  readingsH.textContent = '\uD83D\uDCD6 Today\u2019s Readings';
   readingsSection.appendChild(readingsH);
   const chipsWrap = document.createElement('div');
   chipsWrap.className = 'notebook-readings-chips';
