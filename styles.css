@@ -492,6 +492,27 @@ a { color: var(--md-primary); text-decoration: none; }
 }
 .notebook-app-textarea::placeholder { color: var(--md-on-surface-variant); opacity: .5; }
 
+.nb-export-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  max-width: 720px;
+  margin: 12px auto 0;
+  padding: 10px 16px;
+  font-size: 14px; font-weight: 600;
+  color: var(--md-primary);
+  background: var(--md-surface);
+  border: 1.5px solid var(--md-outline);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: background var(--transition);
+}
+.nb-export-btn:hover { background: var(--md-surface-variant); }
+.nb-export-btn .material-symbols-rounded { font-size: 20px; }
+.nb-export-btn[hidden] { display: none; }
+
 /* ===== HISTORY PAGE ===== */
 .analytics-grid {
   display: grid;
@@ -824,7 +845,7 @@ a { color: var(--md-primary); text-decoration: none; }
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-.modal-verses { line-height: 1.9; font-size: 16px; padding-top: 8px; }
+.modal-verses { line-height: 1.9; font-size: var(--user-font-size, 16px); padding-top: 8px; }
 
 .verse-para {
   margin-bottom: 4px; padding: 3px 6px; border-radius: 6px;

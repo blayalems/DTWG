@@ -38,10 +38,10 @@ const COLOR_PRESETS = {
 
 const DEFAULT_HL_COLORS = {
   purple:{ general:'#E8D5FF', promise:'#C8E6C9', command:'#BBDEFB', warning:'#FFCCBC', principle:'#FFF9C4' },
-  blue:  { general:'#BBDEFB', promise:'#C8E6C9', command:'#D1C4E9', warning:'#FFCCBC', principle:'#FFF9C4' },
-  green: { general:'#C8E6C9', promise:'#E8D5FF', command:'#BBDEFB', warning:'#FFCCBC', principle:'#FFF9C4' },
-  amber: { general:'#FFE0B2', promise:'#C8E6C9', command:'#BBDEFB', warning:'#FFCDD2', principle:'#FFF9C4' },
-  rose:  { general:'#FCE4EC', promise:'#C8E6C9', command:'#BBDEFB', warning:'#FFCCBC', principle:'#FFF9C4' }
+  blue:  { general:'#BBDEFB', promise:'#B2DFDB', command:'#D1C4E9', warning:'#FFE0B2', principle:'#E1F5FE' },
+  green: { general:'#C8E6C9', promise:'#DCEDC8', command:'#B2EBF2', warning:'#FFCCBC', principle:'#F0F4C3' },
+  amber: { general:'#FFE0B2', promise:'#FFECB3', command:'#FFE082', warning:'#FFCDD2', principle:'#FFF8E1' },
+  rose:  { general:'#FCE4EC', promise:'#F8BBD0', command:'#E1BEE7', warning:'#FFCDD2', principle:'#FFF9C4' }
 };
 
 /* ===== THEME & COLOR SYSTEM ===== */
@@ -134,11 +134,20 @@ function syncHlWithTheme() {
   state.settings.hlColors = { ...defaults };
   saveState();
   applyHighlightColors(state.settings.hlColors);
+  updateHlPickerUI();
+}
+
+function updateHlPickerUI() {
+  ['general','promise','command','warning','principle'].forEach(type => {
+    const btn   = document.getElementById(`hl-btn-${type}`);
+    const input = document.getElementById(`hl-color-${type}`);
+    if (btn)   btn.style.background = state.settings.hlColors[type] || '';
+    if (input) input.value = state.settings.hlColors[type] || '#E8D5FF';
+  });
 }
 
 function applyFontSize(size) {
   document.documentElement.style.setProperty('--user-font-size', size + 'px');
-  document.documentElement.style.fontSize = size + 'px';
 }
 
 /* ===== AUDIO ENGINE ===== */
@@ -871,6 +880,8 @@ function renderNotebook() {
   const journalEntry  = state.journal[dateKey] || '';
 
   if (dayHighlights.length === 0 && !journalEntry) {
+    const exportBtn = document.getElementById('nb-export-btn');
+    if (exportBtn) exportBtn.hidden = true;
     const empty = document.createElement('div');
     empty.className = 'notebook-empty';
     const icon = document.createElement('span');
@@ -973,6 +984,82 @@ function renderNotebook() {
   });
   appSection.appendChild(appTextarea);
   paper.appendChild(appSection);
+
+  // Show export button when notebook has content
+  const exportBtn = document.getElementById('nb-export-btn');
+  if (exportBtn) exportBtn.hidden = false;
+}
+
+function exportNotebookPDF() {
+  const dateKey = notebookDate;
+  const dateObj = new Date(dateKey + 'T00:00:00');
+  const opts = { weekday:'long', month:'long', day:'numeric', year:'numeric' };
+  const dateStr = dateObj.toLocaleDateString('en-US', opts);
+
+  const dayHighlights = Object.entries(state.highlights || {}).filter(([,v]) => v.date === dateKey);
+  const journalEntry  = state.journal[dateKey] || '';
+  const readings = getReadingPlan(dateKey);
+
+  const categories = [
+    { type: 'promise',   label: 'Promises \uD83E\uDD1D' },
+    { type: 'command',   label: 'Commands \uD83D\uDCCB' },
+    { type: 'warning',   label: 'Warnings \u26A0\uFE0F' },
+    { type: 'principle', label: 'Principles \uD83D\uDCA1' }
+  ];
+
+  // Build HTML for the print window
+  let html = `<!DOCTYPE html><html><head><meta charset="utf-8">
+<title>DTWG Notebook - ${dateStr}</title>
+<style>
+  body { font-family: Georgia, 'Times New Roman', serif; max-width: 700px; margin: 0 auto; padding: 32px 24px; color: #1C1B1F; }
+  h1 { font-size: 22px; margin-bottom: 4px; }
+  h2 { font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #ccc; padding-bottom: 4px; }
+  .readings { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+  .chip { display: inline-block; padding: 3px 10px; font-size: 12px; background: #eee; border-radius: 12px; }
+  .hl { margin: 6px 0; padding: 8px 10px; border-left: 3px solid #6750A4; background: #f9f7fd; border-radius: 4px; }
+  .hl-ref { font-weight: bold; font-size: 13px; color: #6750A4; }
+  .hl-text { font-size: 14px; margin-top: 2px; }
+  .empty { font-style: italic; color: #888; font-size: 13px; }
+  .journal { white-space: pre-wrap; font-size: 14px; line-height: 1.7; background: #f5f5f5; padding: 12px; border-radius: 6px; }
+  .footer { margin-top: 24px; font-size: 11px; color: #aaa; text-align: center; }
+  @media print { body { padding: 0; } }
+</style></head><body>`;
+
+  html += `<h1>\uD83D\uDCD6 Daily Time with God</h1>`;
+  html += `<p style="margin:0 0 16px;color:#555;">${dateStr}</p>`;
+
+  html += `<h2>\uD83D\uDCD6 Today\u2019s Readings</h2><div class="readings">`;
+  readings.forEach(r => { html += `<span class="chip">${r.book} ${r.chapter}</span>`; });
+  html += `</div>`;
+
+  categories.forEach(cat => {
+    html += `<h2>${cat.label}</h2>`;
+    const items = dayHighlights.filter(([, v]) => v.type === cat.type);
+    if (items.length === 0) {
+      html += `<p class="empty">No ${cat.type} highlights yet.</p>`;
+    } else {
+      items.forEach(([ref, hl]) => {
+        html += `<div class="hl"><div class="hl-ref">${ref}</div>`;
+        if (hl.text) html += `<div class="hl-text">${hl.text}</div>`;
+        html += `</div>`;
+      });
+    }
+  });
+
+  html += `<h2>Application \u270D\uFE0F</h2>`;
+  if (journalEntry) {
+    html += `<div class="journal">${journalEntry.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>`;
+  } else {
+    html += `<p class="empty">No application entry yet.</p>`;
+  }
+
+  html += `<div class="footer">Exported from Daily Time with God</div>`;
+  html += `</body></html>`;
+
+  const printWin = window.open('', '_blank');
+  printWin.document.write(html);
+  printWin.document.close();
+  printWin.onload = () => { printWin.print(); };
 }
 
 /* ===== BIBLE MODAL ===== */
@@ -1626,6 +1713,8 @@ window.addEventListener('load', function() {
       renderNotebook();
     }
   });
+
+  document.getElementById('nb-export-btn').addEventListener('click', () => exportNotebookPDF());
 
   // Calendar nav
   document.getElementById('cal-prev').addEventListener('click', () => changeMonth(-1));
