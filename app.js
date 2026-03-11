@@ -1453,6 +1453,9 @@ function saveOnboarding() {
   document.getElementById('onboarding-modal').setAttribute('hidden', '');
   // Sync settings UI with onboarding selections
   document.getElementById('translation-select').value = translation;
+  document.querySelectorAll('#color-palette .color-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.color === colorName);
+  });
   applyHighlightColors(state.settings.hlColors);
   renderDashboard();
   updateHeaderName();
