@@ -6,7 +6,7 @@ A beautiful, Material Design 3 Progressive Web App for building a consistent dai
 
 - **Structured Reading Plan**: 7 daily readings — 3 Old Testament, 1 Psalm, 1 Proverb, 2 New Testament
 - **Dynamic Onboarding**: Set your starting position in the Bible; the plan adapts from there
-- **Live Bible Reader**: Fetches scripture from bible-api.com with multiple translations (WEB, KJV, BBE, ASV, Darby)
+- **Live Bible Reader**: Fetches scripture from bible-api.com by default, with optional BYO-key API.Bible translations (NIV, NLT, NKJV) and ESV support
 - **5-Category Highlight System**: General, Promise, Command, Warning, Principle — each with customizable colors
 - **Devotional Notebook**: A styled paper-like view aggregating highlights, notes, and readings per day
 - **Spiritual Analytics**: Track streaks, monthly progress, total reading time, and longest streaks
@@ -22,12 +22,20 @@ A beautiful, Material Design 3 Progressive Web App for building a consistent dai
 - **Journal**: Daily reflection prompts with auto-saving textarea
 - **Confetti Celebration**: Canvas particle system on daily completion
 
+## Integration Notes
+
+DTWG is still a serverless PWA. Premium Bible providers, Claude commentary, Bible Brain audio, and Supabase backup use bring-your-own keys stored in this browser's localStorage. Keys are not encrypted by DTWG and are sent directly from the browser to the selected provider.
+
+Android notifications use the Web Notifications API. Delivery is best-effort, browser-throttled, and limited to standard web notification fields and actions; native Android NotificationCompat layouts are not available to Chrome PWAs.
+
+Local development secrets belong in `.env`, which is ignored by Git. Because GitHub Pages serves static files, `.env` is not a secure runtime secret store for the deployed app; production keys must still be entered by the user or mediated by a secured backend.
+
 ## Tech Stack
 
 - Vanilla HTML5, CSS3, JavaScript (ES2020+)
 - Material Design 3 Expressive Color System
 - Google Fonts (Outfit) + Material Symbols Rounded
-- bible-api.com REST API
+- bible-api.com REST API, optional API.Bible and ESV API adapters
 - IndexedDB for offline Bible text caching
 - Service Worker (Cache-first static, Network-first API)
 - Web Audio API for sound effects

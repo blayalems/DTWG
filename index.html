@@ -254,6 +254,35 @@
           <option value="darby">Darby</option>
         </select>
       </div>
+      <details class="settings-details">
+        <summary>Premium translations and keys</summary>
+        <div class="settings-row">
+          <label for="api-bible-key">API.Bible key</label>
+          <input type="password" id="api-bible-key" class="settings-input" autocomplete="off">
+        </div>
+        <div class="settings-row">
+          <label for="esv-key">ESV key</label>
+          <input type="password" id="esv-key" class="settings-input" autocomplete="off">
+        </div>
+        <div class="settings-row">
+          <label for="bible-brain-key">Bible Brain key</label>
+          <input type="password" id="bible-brain-key" class="settings-input" autocomplete="off">
+        </div>
+        <div class="settings-row">
+          <label for="anthropic-key">Claude key</label>
+          <input type="password" id="anthropic-key" class="settings-input" autocomplete="off">
+        </div>
+        <button class="secondary-btn" id="wipe-keys-btn">Wipe API Keys</button>
+        <p class="settings-desc">Keys are stored in this browser only and sent directly to their providers.</p>
+      </details>
+    </div>
+
+    <div class="settings-card">
+      <h3 class="settings-card-title">Reading Plan</h3>
+      <div class="settings-row">
+        <label for="plan-select">Plan preset</label>
+        <select id="plan-select" class="settings-select"></select>
+      </div>
     </div>
 
     <div class="settings-card">
@@ -276,6 +305,76 @@
         <label for="reminder-time">Reminder time</label>
         <input type="time" id="reminder-time" class="settings-input" value="07:00">
       </div>
+      <div class="settings-row">
+        <label for="per-chapter-toggle">Per-chapter progress</label>
+        <label class="toggle-switch">
+          <input type="checkbox" id="per-chapter-toggle" checked>
+          <span class="toggle-track"></span>
+        </label>
+      </div>
+      <div class="settings-row">
+        <label for="streak-notify-toggle">Milestone alerts</label>
+        <label class="toggle-switch">
+          <input type="checkbox" id="streak-notify-toggle" checked>
+          <span class="toggle-track"></span>
+        </label>
+      </div>
+      <div class="settings-row">
+        <label for="inline-reply-toggle">Inline reflection reply</label>
+        <label class="toggle-switch">
+          <input type="checkbox" id="inline-reply-toggle">
+          <span class="toggle-track"></span>
+        </label>
+      </div>
+      <button class="secondary-btn" id="calendar-ics-btn">Add to Calendar</button>
+      <p class="settings-desc" id="notification-support">Notifications are best-effort and browser-dependent.</p>
+    </div>
+
+    <div class="settings-card">
+      <h3 class="settings-card-title">Audio Bible</h3>
+      <div class="settings-row">
+        <label for="audio-autoplay-toggle">Autoplay audio</label>
+        <label class="toggle-switch">
+          <input type="checkbox" id="audio-autoplay-toggle">
+          <span class="toggle-track"></span>
+        </label>
+      </div>
+      <div class="settings-row">
+        <label for="audio-voice">Voice</label>
+        <input type="text" id="audio-voice" class="settings-input" value="ENGESVN2DA">
+      </div>
+    </div>
+
+    <div class="settings-card">
+      <h3 class="settings-card-title">Cloud Backup</h3>
+      <div class="settings-row">
+        <label for="sync-toggle">Enable sync</label>
+        <label class="toggle-switch">
+          <input type="checkbox" id="sync-toggle">
+          <span class="toggle-track"></span>
+        </label>
+      </div>
+      <div class="settings-row">
+        <label for="supabase-url">Supabase URL</label>
+        <input type="url" id="supabase-url" class="settings-input" autocomplete="off">
+      </div>
+      <div class="settings-row">
+        <label for="supabase-anon">Supabase anon key</label>
+        <input type="password" id="supabase-anon" class="settings-input" autocomplete="off">
+      </div>
+      <div class="settings-row">
+        <label for="sync-user-id">User ID</label>
+        <input type="text" id="sync-user-id" class="settings-input" autocomplete="off">
+      </div>
+      <div class="settings-row">
+        <label for="sync-passphrase">Passphrase</label>
+        <input type="password" id="sync-passphrase" class="settings-input" autocomplete="off">
+      </div>
+      <div class="settings-actions">
+        <button class="secondary-btn" id="sync-now-btn">Sync Now</button>
+        <button class="secondary-btn" id="recovery-hint-btn">Recovery Hint</button>
+      </div>
+      <p class="settings-desc danger-text">Passphrase loss means cloud data cannot be recovered.</p>
     </div>
 
     <div class="settings-card">
@@ -329,11 +428,33 @@
       <div id="modal-verses" class="modal-verses"></div>
     </div>
     <div class="modal-footer">
+      <div id="audio-bar" class="audio-bar" hidden></div>
+      <div class="modal-secondary-actions">
+        <button class="secondary-btn" id="audio-load-btn">Audio</button>
+        <button class="secondary-btn" id="ai-explain-btn">Explain</button>
+      </div>
       <button class="modal-action-btn" id="modal-action-btn">
         <span class="material-symbols-rounded">check_circle</span>
         Mark as Read
       </button>
     </div>
+  </div>
+</div>
+
+<div id="side-drawer" class="side-drawer" hidden>
+  <div class="side-drawer-panel">
+    <button class="modal-close-btn" id="side-drawer-close" aria-label="Close">
+      <span class="material-symbols-rounded">close</span>
+    </button>
+    <h3 id="side-drawer-title">Details</h3>
+    <div id="side-drawer-body"></div>
+  </div>
+</div>
+
+<div id="command-palette" class="palette-overlay" hidden>
+  <div class="palette-panel" role="dialog" aria-modal="true" aria-label="Search">
+    <input id="palette-input" class="palette-input" placeholder="Search verses or jump to John 3:16">
+    <div id="palette-results" class="palette-results"></div>
   </div>
 </div>
 
@@ -440,6 +561,7 @@
   </div>
 </div>
 
+<script src="./plan.js" defer></script>
 <script src="./app.js" defer></script>
 </body>
 </html>

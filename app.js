@@ -190,32 +190,6 @@ function doHaptic(pattern = [10]) {
   if (navigator.vibrate) navigator.vibrate(pattern);
 }
 
-/* ===== BIBLE BOOK DATA ===== */
-const OT_BOOKS = [
-  ['Genesis',50],['Exodus',40],['Leviticus',27],['Numbers',36],['Deuteronomy',34],
-  ['Joshua',24],['Judges',21],['Ruth',4],['1 Samuel',31],['2 Samuel',24],
-  ['1 Kings',22],['2 Kings',25],['1 Chronicles',29],['2 Chronicles',36],
-  ['Ezra',10],['Nehemiah',13],['Esther',10],['Job',42],['Psalms',150],
-  ['Proverbs',31],['Ecclesiastes',12],['Song of Solomon',8],['Isaiah',66],
-  ['Jeremiah',52],['Lamentations',5],['Ezekiel',48],['Daniel',12],['Hosea',14],
-  ['Joel',3],['Amos',9],['Obadiah',1],['Jonah',4],['Micah',7],['Nahum',3],
-  ['Habakkuk',3],['Zephaniah',3],['Haggai',2],['Zechariah',14],['Malachi',4]
-];
-
-const NT_BOOKS = [
-  ['Matthew',28],['Mark',16],['Luke',24],['John',21],['Acts',28],
-  ['Romans',16],['1 Corinthians',16],['2 Corinthians',13],['Galatians',6],
-  ['Ephesians',6],['Philippians',4],['Colossians',4],['1 Thessalonians',5],
-  ['2 Thessalonians',3],['1 Timothy',6],['2 Timothy',4],['Titus',3],
-  ['Philemon',1],['Hebrews',13],['James',5],['1 Peter',5],['2 Peter',3],
-  ['1 John',5],['2 John',1],['3 John',1],['Jude',1],['Revelation',22]
-];
-
-const TOTAL_OT      = OT_BOOKS.reduce((s,b) => s + b[1], 0);
-const TOTAL_NT      = NT_BOOKS.reduce((s,b) => s + b[1], 0);
-const TOTAL_PSALMS  = 150;
-const TOTAL_PROVERBS = 31;
-
 const JOURNAL_PROMPTS = [
   "What stood out to you in today's reading?",
   "How does today's passage apply to your life?",
@@ -236,6 +210,7 @@ const DEFAULT_STATE = {
   readingPlan: 'standard',
   startDate: null,
   readingPlanId: 'standard',
+  customPlan: [],
   startOtIndex: 0,
   startNtIndex: 0,
   startPsalmIndex: 0,
@@ -250,7 +225,7 @@ const DEFAULT_STATE = {
   streakFreezes: 2,
   frozenDays: [],
   streakMilestones: 0,
-  apiKeys: { apiBible: '', anthropic: '', bibleBrain: '' },
+  apiKeys: { apiBible: '', esv: '', anthropic: '', bibleBrain: '', supabaseUrl: '', supabaseAnon: '' },
   audio: { autoplay: false, voice: 'ENGESVN2DA' },
   cloudSync: { enabled: false, userId: null, salt: null, lastSyncTs: 0 },
   notifications: { perChapter: true, streak: true, inlineReply: false },
@@ -272,14 +247,19 @@ let state = JSON.parse(JSON.stringify(DEFAULT_STATE));
 
 /* ===== INDEXEDDB ===== */
 const DB_NAME = 'dtwg-bible-cache';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 let dbPromise = null;
 
 function openDB() {
   if (dbPromise) return dbPromise;
   dbPromise = new Promise((resolve, reject) => {
     const req = indexedDB.open(DB_NAME, DB_VERSION);
-    req.onupgradeneeded = e => { e.target.result.createObjectStore('chapters'); };
+    req.onupgradeneeded = e => {
+      const db = e.target.result;
+      ['chapters', 'audio', 'ai', 'sync'].forEach(store => {
+        if (!db.objectStoreNames.contains(store)) db.createObjectStore(store);
+      });
+    };
     req.onsuccess = e => resolve(e.target.result);
     req.onerror = e => reject(e);
   });
@@ -287,21 +267,29 @@ function openDB() {
 }
 
 async function getCachedBible(key) {
+  return getCachedStore('chapters', key);
+}
+
+async function setCachedBible(key, data) {
+  return setCachedStore('chapters', key, data);
+}
+
+async function getCachedStore(storeName, key) {
   try {
     const db = await openDB();
     return new Promise(resolve => {
-      const req = db.transaction('chapters','readonly').objectStore('chapters').get(key);
+      const req = db.transaction(storeName,'readonly').objectStore(storeName).get(key);
       req.onsuccess = e => resolve(e.target.result || null);
       req.onerror = () => resolve(null);
     });
   } catch { return null; }
 }
 
-async function setCachedBible(key, data) {
+async function setCachedStore(storeName, key, data) {
   try {
     const db = await openDB();
-    const tx = db.transaction('chapters','readwrite');
-    tx.objectStore('chapters').put(data, key);
+    const tx = db.transaction(storeName,'readwrite');
+    tx.objectStore(storeName).put(data, key);
   } catch {}
 }
 
@@ -324,6 +312,7 @@ function loadState() {
     if (!state.settings.reminderTime) state.settings.reminderTime = '07:00';
     if (!state.settings.fontSize) state.settings.fontSize = 16;
     if (!state.readingPlanId) state.readingPlanId = state.readingPlan || DEFAULT_STATE.readingPlanId;
+    state.customPlan = Array.isArray(saved.customPlan) ? saved.customPlan : [];
     state.verseNotes = { ...DEFAULT_STATE.verseNotes, ...(saved.verseNotes || {}) };
     state.apiKeys = { ...DEFAULT_STATE.apiKeys, ...(saved.apiKeys || {}) };
     state.audio = { ...DEFAULT_STATE.audio, ...(saved.audio || {}) };
@@ -332,6 +321,7 @@ function loadState() {
     needsSave = saved.version !== STATE_VERSION
       || !Object.prototype.hasOwnProperty.call(saved, 'startDate')
       || !Object.prototype.hasOwnProperty.call(saved, 'readingPlanId')
+      || !Object.prototype.hasOwnProperty.call(saved, 'customPlan')
       || !Object.prototype.hasOwnProperty.call(saved, 'verseNotes')
       || !Object.prototype.hasOwnProperty.call(saved, 'apiKeys')
       || !Object.prototype.hasOwnProperty.call(saved, 'audio')
@@ -363,87 +353,8 @@ window.addEventListener('storage', e => {
   }
 });
 
-/* ===== UTILITIES ===== */
-function mod(n, m) { return ((n % m) + m) % m; }
-
-function stripTime(date) {
-  const d = new Date(date);
-  d.setHours(0,0,0,0);
-  return d;
-}
-
-function formatDateKey(date) {
-  const d = stripTime(date);
-  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-}
-
-function getDaysDiff(a, b) {
-  return Math.round((stripTime(b) - stripTime(a)) / 86400000);
-}
-
-function getAbsoluteIndexFromSelection(books, bookIdx, chap) {
-  let idx = 0;
-  for (let i = 0; i < bookIdx; i++) idx += books[i][1];
-  return idx + (chap - 1);
-}
-
-function getBookAndChapterFromIndex(books, absIdx) {
-  const total = books.reduce((s,b) => s+b[1], 0);
-  let remaining = mod(absIdx, total);
-  for (let i = 0; i < books.length; i++) {
-    if (remaining < books[i][1]) return { book: books[i][0], chapter: remaining + 1, bookIdx: i };
-    remaining -= books[i][1];
-  }
-  return { book: books[0][0], chapter: 1, bookIdx: 0 };
-}
-
-function getChapterFromIndex(type, idx) {
-  if (type === 'ot')      return getBookAndChapterFromIndex(OT_BOOKS, mod(idx, TOTAL_OT));
-  if (type === 'nt')      return getBookAndChapterFromIndex(NT_BOOKS, mod(idx, TOTAL_NT));
-  if (type === 'psalm')   return { book:'Psalms',   chapter: mod(idx, TOTAL_PSALMS)   + 1 };
-  if (type === 'proverb') return { book:'Proverbs', chapter: mod(idx, TOTAL_PROVERBS) + 1 };
-}
-
 function getReadingPlan(dateKey) {
-  const origin = state.startDate || formatDateKey(new Date());
-  const daysDiff = getDaysDiff(new Date(origin + 'T00:00:00'), new Date(dateKey + 'T00:00:00'));
-  const plan = state.readingPlan || 'standard';
-  const readings = [];
-
-  // Proverbs: use the calendar day of month (1–31) so it cycles with the month
-  const dateObj = new Date(dateKey + 'T00:00:00');
-  const provChap = Math.min(dateObj.getDate(), 31);
-
-  if (plan === 'standard') {
-    for (let i = 0; i < 3; i++) {
-      const c = getChapterFromIndex('ot', state.startOtIndex + daysDiff * 3 + i);
-      readings.push({ type:'ot', label:'Old Testament', ...c });
-    }
-    readings.push({ type:'psalm',   label:'Psalm',    ...getChapterFromIndex('psalm', state.startPsalmIndex + daysDiff) });
-    readings.push({ type:'proverb', label:'Proverb',  book:'Proverbs', chapter: provChap });
-    for (let i = 0; i < 2; i++) {
-      const c = getChapterFromIndex('nt', state.startNtIndex + daysDiff * 2 + i);
-      readings.push({ type:'nt', label:'New Testament', ...c });
-    }
-  } else if (plan === 'ot-focus') {
-    for (let i = 0; i < 5; i++) {
-      const c = getChapterFromIndex('ot', state.startOtIndex + daysDiff * 5 + i);
-      readings.push({ type:'ot', label:'Old Testament', ...c });
-    }
-    readings.push({ type:'psalm', label:'Psalm', ...getChapterFromIndex('psalm', state.startPsalmIndex + daysDiff) });
-    readings.push({ type:'nt',   label:'New Testament', ...getChapterFromIndex('nt', state.startNtIndex + daysDiff) });
-  } else if (plan === 'nt-focus') {
-    for (let i = 0; i < 2; i++) {
-      const c = getChapterFromIndex('ot', state.startOtIndex + daysDiff * 2 + i);
-      readings.push({ type:'ot', label:'Old Testament', ...c });
-    }
-    readings.push({ type:'psalm', label:'Psalm', ...getChapterFromIndex('psalm', state.startPsalmIndex + daysDiff) });
-    for (let i = 0; i < 4; i++) {
-      const c = getChapterFromIndex('nt', state.startNtIndex + daysDiff * 4 + i);
-      readings.push({ type:'nt', label:'New Testament', ...c });
-    }
-  }
-  return readings;
+  return getReadingPlanForState(state, dateKey);
 }
 
 /* ===== STATS & STREAK ===== */
@@ -621,6 +532,7 @@ document.addEventListener('DOMContentLoaded', () => {
 /* ===== CHECK & COMPLETION ===== */
 function toggleCheck(idx) {
   const dateKey = viewedDate;
+  const prevStreak = state.streak || 0;
   if (!state.completed[dateKey]) state.completed[dateKey] = [];
   const arr = state.completed[dateKey];
   const i = arr.indexOf(idx);
@@ -636,9 +548,11 @@ function toggleCheck(idx) {
   }
   saveState();
   recomputeAllStats();
+  checkMilestoneNotifications(prevStreak);
   saveState();
   renderDashboard();
   updateStatDisplays();
+  notifyProgress(dateKey);
 }
 
 function triggerCompletion() {
@@ -1108,9 +1022,128 @@ let currentModalIdx       = -1;
 let currentReadingStartTime = null;
 let lastActivity          = Date.now();
 let touchStartX           = 0;
+let currentChapterData    = null;
 
 document.addEventListener('touchstart', () => { lastActivity = Date.now(); }, { passive: true });
 document.addEventListener('mousemove',  () => { lastActivity = Date.now(); }, { passive: true });
+
+const BIBLE_API_TRANSLATIONS = [
+  { value:'web', label:'WEB' },
+  { value:'kjv', label:'KJV' },
+  { value:'bbe', label:'BBE' },
+  { value:'asv', label:'ASV' },
+  { value:'darby', label:'Darby' }
+];
+
+const API_BIBLE_IDS = {
+  niv: '78a9f6124f344018-01',
+  nlt: 'd6e14a625393b4da-01',
+  nkjv: '63097d2a0a2f7db3-01'
+};
+
+const API_BIBLE_LABELS = {
+  niv: 'NIV (API.Bible)',
+  nlt: 'NLT (API.Bible)',
+  nkjv: 'NKJV (API.Bible)'
+};
+
+const BOOK_ID3 = {
+  Genesis:'GEN', Exodus:'EXO', Leviticus:'LEV', Numbers:'NUM', Deuteronomy:'DEU', Joshua:'JOS', Judges:'JDG', Ruth:'RUT',
+  '1 Samuel':'1SA', '2 Samuel':'2SA', '1 Kings':'1KI', '2 Kings':'2KI', '1 Chronicles':'1CH', '2 Chronicles':'2CH',
+  Ezra:'EZR', Nehemiah:'NEH', Esther:'EST', Job:'JOB', Psalms:'PSA', Proverbs:'PRO', Ecclesiastes:'ECC',
+  'Song of Solomon':'SNG', Isaiah:'ISA', Jeremiah:'JER', Lamentations:'LAM', Ezekiel:'EZK', Daniel:'DAN',
+  Hosea:'HOS', Joel:'JOL', Amos:'AMO', Obadiah:'OBA', Jonah:'JON', Micah:'MIC', Nahum:'NAM', Habakkuk:'HAB',
+  Zephaniah:'ZEP', Haggai:'HAG', Zechariah:'ZEC', Malachi:'MAL', Matthew:'MAT', Mark:'MRK', Luke:'LUK',
+  John:'JHN', Acts:'ACT', Romans:'ROM', '1 Corinthians':'1CO', '2 Corinthians':'2CO', Galatians:'GAL',
+  Ephesians:'EPH', Philippians:'PHP', Colossians:'COL', '1 Thessalonians':'1TH', '2 Thessalonians':'2TH',
+  '1 Timothy':'1TI', '2 Timothy':'2TI', Titus:'TIT', Philemon:'PHM', Hebrews:'HEB', James:'JAS',
+  '1 Peter':'1PE', '2 Peter':'2PE', '1 John':'1JN', '2 John':'2JN', '3 John':'3JN', Jude:'JUD', Revelation:'REV'
+};
+
+const BibleProviders = {
+  'bible-api': { needsKey: false, translations: BIBLE_API_TRANSLATIONS.map(t => t.value), fetch: fetchBibleApi },
+  'api-bible': { needsKey: true, translations: Object.keys(API_BIBLE_IDS), fetch: fetchApiBible },
+  'esv': { needsKey: true, translations: ['esv'], fetch: fetchEsv }
+};
+
+function getActiveProvider(translation) {
+  if (translation === 'nkv') translation = 'nkjv';
+  if (translation === 'esv' && state.apiKeys.esv) return 'esv';
+  if (API_BIBLE_IDS[translation] && state.apiKeys.apiBible) return 'api-bible';
+  return 'bible-api';
+}
+
+function cacheKeyForChapter(provider, translation, book, chapter) {
+  return `dtwg_bible_${provider}_${translation}_${book}_${chapter}`;
+}
+
+async function fetchBibleApi(book, chapter, translation) {
+  const bookSlug = book.toLowerCase().replace(/\s+/g, '+');
+  const resp = await fetch(`https://bible-api.com/${bookSlug}+${chapter}?translation=${translation}`);
+  if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+  const data = await resp.json();
+  return {
+    verses: (data.verses || []).map(v => ({ verse: v.verse, text: v.text })),
+    reference: data.reference || `${book} ${chapter}`,
+    translation_name: data.translation_name || translation.toUpperCase()
+  };
+}
+
+async function fetchApiBible(book, chapter, translation) {
+  if (translation === 'nkv') translation = 'nkjv';
+  const bibleId = API_BIBLE_IDS[translation] || API_BIBLE_IDS.niv;
+  const passageId = `${BOOK_ID3[book] || book}.${chapter}`.replace(/\s+/g, '');
+  const resp = await fetch(`https://rest.api.bible/v1/bibles/${bibleId}/chapters/${encodeURIComponent(passageId)}?content-type=text&include-notes=false&include-titles=false`, {
+    headers: { 'api-key': state.apiKeys.apiBible }
+  });
+  if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+  const data = await resp.json();
+  const content = data.data?.content || '';
+  return {
+    verses: splitPlainChapter(content),
+    reference: data.data?.reference || `${book} ${chapter}`,
+    translation_name: translation.toUpperCase(),
+    crossrefs: []
+  };
+}
+
+async function fetchEsv(book, chapter) {
+  const url = `https://api.esv.org/v3/passage/text/?q=${encodeURIComponent(`${book} ${chapter}`)}&include-footnotes=false&include-headings=false`;
+  const resp = await fetch(url, {
+    headers: { Authorization: `Token ${state.apiKeys.esv}` }
+  });
+  if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+  const data = await resp.json();
+  return {
+    verses: splitPlainChapter((data.passages || [''])[0]),
+    reference: data.canonical || `${book} ${chapter}`,
+    translation_name: 'ESV'
+  };
+}
+
+function splitPlainChapter(text) {
+  const withMarkers = String(text || '').replace(/\[(\d+)\]/g, ' $1 ');
+  const clean = withMarkers.replace(/\[[^\]]+\]/g, ' ').replace(/\s+/g, ' ').trim();
+  if (!clean) return [];
+  const parts = clean.split(/(?=\s\d+\s)/).filter(Boolean);
+  if (parts.length <= 1) return [{ verse: 1, text: clean }];
+  return parts.map((part, idx) => {
+    const m = part.match(/^\s*(\d+)\s+(.*)$/);
+    return { verse: m ? Number(m[1]) : idx + 1, text: m ? m[2] : part.trim() };
+  });
+}
+
+async function fetchChapter(book, chapter, translation) {
+  const provider = getActiveProvider(translation);
+  const key = cacheKeyForChapter(provider, translation, book, chapter);
+  let data = await getCachedBible(key);
+  if (!data) {
+    data = await BibleProviders[provider].fetch(book, chapter, translation);
+    data.provider = provider;
+    await setCachedBible(key, data);
+  }
+  return data;
+}
 
 async function openBibleModal(book, chapter, idx) {
   currentModalReading     = { book, chapter };
@@ -1138,19 +1171,10 @@ async function openBibleModal(book, chapter, idx) {
   // Scroll to top
   document.getElementById('modal-body').scrollTop = 0;
 
-  const translation = state.settings.translation || 'web';
-  const cacheKey    = `dtwg_bible_${translation}_${book}_${chapter}`;
-
   try {
-    let data = await getCachedBible(cacheKey);
-    if (!data) {
-      const bookSlug = book.toLowerCase().replace(/\s+/g, '+');
-      const url = `https://bible-api.com/${bookSlug}+${chapter}?translation=${translation}`;
-      const resp = await fetch(url);
-      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-      data = await resp.json();
-      await setCachedBible(cacheKey, data);
-    }
+    const translation = state.settings.translation || 'web';
+    const data = await fetchChapter(book, chapter, translation);
+    currentChapterData = data;
     renderBibleVerses(data, book, chapter);
   } catch(err) {
     document.getElementById('modal-loading').style.display = 'none';
@@ -1207,12 +1231,27 @@ function renderBibleVerses(data, book, chapter) {
     const refKey  = `${book} ${chapter}:${v.verse}`;
     const existing = state.highlights[refKey];
     if (existing) p.classList.add(`hl-${existing.type}`);
+    if (state.verseNotes?.[refKey]?.text) p.classList.add('has-note');
 
     p.appendChild(num);
     p.appendChild(text);
     p.addEventListener('click', () => showHighlightMenu(p, refKey, v.text));
+    attachLongPressNote(p, refKey, v.text);
     versesEl.appendChild(p);
   });
+
+  if (Array.isArray(data.crossrefs) && data.crossrefs.length) {
+    const strip = document.createElement('div');
+    strip.className = 'crossref-output';
+    data.crossrefs.slice(0, 12).forEach(ref => {
+      const chip = document.createElement('button');
+      chip.className = 'secondary-btn';
+      chip.textContent = ref.reference || ref;
+      chip.addEventListener('click', () => openSideDrawer('Cross-reference', ref.text || ref.reference || ref));
+      strip.appendChild(chip);
+    });
+    versesEl.appendChild(strip);
+  }
 
   document.getElementById('modal-title').textContent = `${book} ${chapter} (${(state.settings.translation || 'web').toUpperCase()})`;
 }
@@ -1293,6 +1332,16 @@ function showHighlightMenu(verseEl, refKey, verseText) {
   });
   menu.appendChild(eraser);
 
+  const noteBtn = document.createElement('button');
+  noteBtn.className = 'hl-circle-btn';
+  noteBtn.setAttribute('aria-label', 'Note');
+  noteBtn.textContent = 'Note';
+  noteBtn.addEventListener('click', e => {
+    e.stopPropagation();
+    openNotePopover(verseEl, refKey, verseText);
+  });
+  menu.appendChild(noteBtn);
+
   setTimeout(() => {
     document.addEventListener('click', function closeMenu(e) {
       if (!menu.contains(e.target)) { menu.remove(); document.removeEventListener('click', closeMenu); }
@@ -1300,6 +1349,407 @@ function showHighlightMenu(verseEl, refKey, verseText) {
   }, 10);
 
   verseEl.insertAdjacentElement('afterend', menu);
+}
+
+function attachLongPressNote(verseEl, refKey, verseText) {
+  let timer = null;
+  verseEl.addEventListener('pointerdown', () => {
+    timer = setTimeout(() => openNotePopover(verseEl, refKey, verseText), 500);
+  });
+  ['pointerup','pointercancel','pointermove'].forEach(type => {
+    verseEl.addEventListener(type, () => { clearTimeout(timer); timer = null; });
+  });
+}
+
+function openNotePopover(verseEl, refKey, verseText) {
+  document.querySelectorAll('.hl-menu').forEach(m => m.remove());
+  const pop = document.createElement('div');
+  pop.className = 'hl-menu note-popover';
+  const textarea = document.createElement('textarea');
+  textarea.value = state.verseNotes?.[refKey]?.text || '';
+  textarea.placeholder = `Note on ${refKey}`;
+  const saveBtn = document.createElement('button');
+  saveBtn.className = 'secondary-btn';
+  saveBtn.textContent = 'Save';
+  const deleteBtn = document.createElement('button');
+  deleteBtn.className = 'secondary-btn';
+  deleteBtn.textContent = 'Delete';
+  saveBtn.addEventListener('click', e => {
+    e.stopPropagation();
+    if (!state.verseNotes) state.verseNotes = {};
+    const text = textarea.value.trim();
+    if (text) {
+      state.verseNotes[refKey] = { text, ts: Date.now(), verseText };
+      verseEl.classList.add('has-note');
+    } else {
+      delete state.verseNotes[refKey];
+      verseEl.classList.remove('has-note');
+    }
+    saveState();
+    pop.remove();
+  });
+  deleteBtn.addEventListener('click', e => {
+    e.stopPropagation();
+    delete state.verseNotes[refKey];
+    verseEl.classList.remove('has-note');
+    saveState();
+    pop.remove();
+  });
+  pop.appendChild(textarea);
+  pop.appendChild(saveBtn);
+  pop.appendChild(deleteBtn);
+  verseEl.insertAdjacentElement('afterend', pop);
+  textarea.focus();
+}
+
+function openSideDrawer(title, bodyNodeOrText) {
+  const drawer = document.getElementById('side-drawer');
+  const body = document.getElementById('side-drawer-body');
+  document.getElementById('side-drawer-title').textContent = title;
+  body.innerHTML = '';
+  if (typeof bodyNodeOrText === 'string') {
+    const div = document.createElement('div');
+    div.className = 'ai-output';
+    div.textContent = bodyNodeOrText;
+    body.appendChild(div);
+  } else if (bodyNodeOrText) {
+    body.appendChild(bodyNodeOrText);
+  }
+  drawer.hidden = false;
+}
+
+function closeSideDrawer() {
+  document.getElementById('side-drawer').hidden = true;
+}
+
+async function getAudioUrl(book, chapter, voice) {
+  if (!state.apiKeys.bibleBrain) throw new Error('Bible Brain key required');
+  const fileset = voice || state.audio.voice || 'ENGESVN2DA';
+  const params = new URLSearchParams({ key: state.apiKeys.bibleBrain, fileset_id: fileset, book_id: BOOK_ID3[book] || book.slice(0, 3).toUpperCase(), chapter_id: String(chapter) });
+  const resp = await fetch(`https://4.dbt.io/api/bibles/filesets/audio?${params}`);
+  if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+  const data = await resp.json();
+  return data?.data?.[0]?.path || data?.data?.[0]?.url || '';
+}
+
+async function cacheAudio(url, key) {
+  const cached = await getCachedStore('audio', key);
+  if (cached) return URL.createObjectURL(cached);
+  const resp = await fetch(url);
+  if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+  const blob = await resp.blob();
+  await setCachedStore('audio', key, blob);
+  return URL.createObjectURL(blob);
+}
+
+function setupMediaSession(meta) {
+  if (!('mediaSession' in navigator)) return;
+  navigator.mediaSession.metadata = new MediaMetadata({
+    title: meta.title,
+    artist: 'Daily Time with God',
+    album: state.settings.translation?.toUpperCase() || 'Bible'
+  });
+}
+
+async function mountAudioBar(refKey) {
+  const bar = document.getElementById('audio-bar');
+  bar.hidden = false;
+  bar.innerHTML = '<div class="audio-meta">Loading audio...</div>';
+  try {
+    const { book, chapter } = currentModalReading;
+    const remoteUrl = await getAudioUrl(book, chapter, state.audio.voice);
+    if (!remoteUrl) throw new Error('No audio file available');
+    const shouldCache = !navigator.connection || navigator.connection.effectiveType === '4g' || state.audio.autoplay;
+    const src = shouldCache ? await cacheAudio(remoteUrl, `audio_${state.audio.voice}_${refKey}`) : remoteUrl;
+    bar.innerHTML = '';
+    const meta = document.createElement('div');
+    meta.className = 'audio-meta';
+    meta.textContent = `${book} ${chapter} audio`;
+    const audio = document.createElement('audio');
+    audio.controls = true;
+    audio.src = src;
+    bar.appendChild(meta);
+    bar.appendChild(audio);
+    setupMediaSession({ title: `${book} ${chapter}` });
+    if (state.audio.autoplay) audio.play().catch(() => {});
+  } catch (err) {
+    bar.innerHTML = `<div class="audio-meta">${err.message}</div>`;
+  }
+}
+
+async function getCachedAI(key) {
+  return getCachedStore('ai', key);
+}
+
+async function streamClaude(systemPrompt, userPrompt, onToken) {
+  if (!state.apiKeys.anthropic) throw new Error('Claude API key required');
+  const resp = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      'x-api-key': state.apiKeys.anthropic,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true'
+    },
+    body: JSON.stringify({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 700,
+      stream: true,
+      system: systemPrompt,
+      messages: [{ role: 'user', content: userPrompt }]
+    })
+  });
+  if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+  const reader = resp.body.getReader();
+  const decoder = new TextDecoder();
+  let out = '';
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    const chunk = decoder.decode(value, { stream: true });
+    chunk.split('\n').forEach(line => {
+      if (!line.startsWith('data:')) return;
+      const raw = line.slice(5).trim();
+      if (!raw || raw === '[DONE]') return;
+      try {
+        const event = JSON.parse(raw);
+        const text = event.delta?.text || event.content_block?.text || '';
+        if (text) { out += text; onToken(text); }
+      } catch {}
+    });
+  }
+  return out;
+}
+
+async function explainPassage(book, chapter, verseRange) {
+  const key = `dtwg_ai_${book}_${chapter}_${verseRange || 'chapter'}_claude-haiku-4-5-20251001`;
+  const cached = await getCachedAI(key);
+  const out = document.createElement('div');
+  out.className = 'ai-output';
+  openSideDrawer(`Explain ${book} ${chapter}`, out);
+  if (cached) { out.textContent = cached.text; return; }
+  const systemPrompt = 'You are a concise devotional Bible study assistant. Be ecumenical, practical, and about 250 words. Avoid denominational debate.';
+  const verses = (currentChapterData?.verses || []).map(v => `${v.verse}. ${v.text}`).join('\n');
+  const text = await streamClaude(systemPrompt, `Explain ${book} ${chapter}${verseRange ? ':' + verseRange : ''} devotionally.\n\n${verses}`, token => { out.textContent += token; });
+  await setCachedStore('ai', key, { text, ts: Date.now() });
+}
+
+function buildIcs(reminderTime, startDate) {
+  const uid = `dtwg-${startDate}@blayalems.github.io`;
+  const dt = (startDate || formatDateKey(new Date())).replace(/-/g, '') + 'T' + (reminderTime || '07:00').replace(':', '') + '00';
+  return [
+    'BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//DTWG//Daily Time with God//EN','BEGIN:VEVENT',
+    `UID:${uid}`,`DTSTART:${dt}`,'RRULE:FREQ=DAILY','SUMMARY:Daily Time with God',
+    "DESCRIPTION:Open DTWG and complete today's readings.",'BEGIN:VALARM','TRIGGER:-PT10M','ACTION:DISPLAY',
+    'DESCRIPTION:Daily Time with God','END:VALARM','END:VEVENT','END:VCALENDAR'
+  ].join('\r\n');
+}
+
+function downloadIcs() {
+  const blob = new Blob([buildIcs(state.settings.reminderTime, state.startDate)], { type: 'text/calendar' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'dtwg-daily-reminder.ics';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+async function shareIcs() {
+  const file = new File([buildIcs(state.settings.reminderTime, state.startDate)], 'dtwg-daily-reminder.ics', { type: 'text/calendar' });
+  if (navigator.share && navigator.canShare?.({ files: [file] })) await navigator.share({ files: [file], title: 'DTWG Daily Reminder' });
+  else downloadIcs();
+}
+
+function postToSW(message) {
+  if (!navigator.serviceWorker?.controller) return;
+  navigator.serviceWorker.controller.postMessage(message);
+}
+
+async function scheduleReminderIfEnabled() {
+  if (!state.settings.reminder || !('Notification' in window)) return;
+  if (Notification.permission !== 'granted') {
+    const perm = await Notification.requestPermission();
+    if (perm !== 'granted') return;
+  }
+  const reg = await navigator.serviceWorker?.ready;
+  if (!reg) return;
+  try {
+    if ('periodicSync' in reg) await reg.periodicSync.register('dtwg-daily', { minInterval: 12 * 60 * 60 * 1000 });
+  } catch {}
+  postToSW({ type: 'scheduleReminder', time: state.settings.reminderTime, state });
+}
+
+function notifyProgress(dateKey) {
+  const readings = getReadingPlan(dateKey);
+  const done = (state.completed[dateKey] || []).length;
+  if (state.notifications?.perChapter) postToSW({ type: 'updateProgress', dateKey, done, total: readings.length, state });
+}
+
+function checkMilestoneNotifications(prevStreak) {
+  const milestones = [7, 30, 100];
+  milestones.forEach(n => {
+    if ((prevStreak || 0) < n && state.streak >= n && state.notifications?.streak) {
+      postToSW({ type: 'milestone', milestone: n });
+    }
+  });
+}
+
+let searchIndex = null;
+async function buildSearchIndex() {
+  if (searchIndex) return searchIndex;
+  const warm = await getCachedStore('sync', 'dtwg_search_index');
+  if (warm) { searchIndex = warm; return searchIndex; }
+  searchIndex = { terms: {}, refs: {} };
+  const db = await openDB();
+  await new Promise(resolve => {
+    const req = db.transaction('chapters','readonly').objectStore('chapters').openCursor();
+    req.onsuccess = e => {
+      const cursor = e.target.result;
+      if (!cursor) { resolve(); return; }
+      const data = cursor.value;
+      (data.verses || []).forEach(v => {
+        const ref = `${data.reference || cursor.key}:${v.verse}`;
+        searchIndex.refs[ref] = { ref, text: v.text, book: ref.replace(/\s+\d+.*/, ''), chapter: Number((ref.match(/\s(\d+)/) || [0, 1])[1]) };
+        String(v.text).toLowerCase().match(/[a-z]{3,}/g)?.forEach(word => {
+          if (!searchIndex.terms[word]) searchIndex.terms[word] = [];
+          if (!searchIndex.terms[word].includes(ref)) searchIndex.terms[word].push(ref);
+        });
+      });
+      cursor.continue();
+    };
+    req.onerror = () => resolve();
+  });
+  await setCachedStore('sync', 'dtwg_search_index', searchIndex);
+  return searchIndex;
+}
+
+function openPalette() {
+  const palette = document.getElementById('command-palette');
+  palette.hidden = false;
+  const input = document.getElementById('palette-input');
+  input.value = '';
+  renderPaletteResults('');
+  input.focus();
+}
+
+function closePalette() {
+  document.getElementById('command-palette').hidden = true;
+}
+
+async function renderPaletteResults(query) {
+  const results = document.getElementById('palette-results');
+  results.innerHTML = '';
+  const jump = parseReference(query);
+  if (jump) {
+    results.appendChild(paletteItem(`${jump.book} ${jump.chapter}${jump.verse ? ':' + jump.verse : ''}`, 'Open passage', () => {
+      closePalette();
+      openBibleModal(jump.book, jump.chapter, 0);
+    }));
+    return;
+  }
+  if (!query || query.trim().length < 3) {
+    results.innerHTML = '<div class="palette-result"><span>Type at least 3 letters to search cached chapters.</span></div>';
+    return;
+  }
+  const idx = await buildSearchIndex();
+  const terms = query.toLowerCase().match(/[a-z]{3,}/g) || [];
+  const refs = [...new Set(terms.flatMap(t => idx.terms[t] || []))].slice(0, 20);
+  refs.forEach(ref => {
+    const item = idx.refs[ref];
+    if (item) results.appendChild(paletteItem(item.ref, item.text, () => {
+      closePalette();
+      openBibleModal(item.book, item.chapter, 0);
+    }));
+  });
+  if (!refs.length) results.innerHTML = '<div class="palette-result"><span>No cached matches yet.</span></div>';
+}
+
+function paletteItem(title, text, onClick) {
+  const el = document.createElement('div');
+  el.className = 'palette-result';
+  el.innerHTML = `<strong></strong><span></span>`;
+  el.querySelector('strong').textContent = title;
+  el.querySelector('span').textContent = text;
+  el.addEventListener('click', onClick);
+  return el;
+}
+
+function parseReference(query) {
+  const m = String(query || '').trim().match(/^(\d?\s?[A-Za-z]+(?:\s+of\s+[A-Za-z]+)?)\s+(\d+):?(\d+)?$/);
+  if (!m) return null;
+  return { book: m[1].replace(/\s+/g, ' ').trim(), chapter: Number(m[2]), verse: m[3] ? Number(m[3]) : null };
+}
+
+async function deriveKey(passphrase, salt, iterations = 250000) {
+  const base = await crypto.subtle.importKey('raw', new TextEncoder().encode(passphrase), 'PBKDF2', false, ['deriveKey']);
+  return crypto.subtle.deriveKey({ name: 'PBKDF2', salt, iterations, hash: 'SHA-256' }, base, { name: 'AES-GCM', length: 256 }, false, ['encrypt','decrypt']);
+}
+
+async function encryptState(payload, key) {
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ciphertext = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, new TextEncoder().encode(JSON.stringify(payload)));
+  return { ciphertext: arrayBufferToBase64(ciphertext), iv: arrayBufferToBase64(iv) };
+}
+
+async function decryptState(blob, passphrase) {
+  const salt = base64ToBytes(blob.salt);
+  const key = await deriveKey(passphrase, salt, blob.iterations || 250000);
+  const plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: base64ToBytes(blob.iv) }, key, base64ToBytes(blob.ciphertext));
+  return JSON.parse(new TextDecoder().decode(plain));
+}
+
+function arrayBufferToBase64(buf) {
+  const bytes = new Uint8Array(buf);
+  let binary = '';
+  for (let i = 0; i < bytes.length; i += 0x8000) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  }
+  return btoa(binary);
+}
+
+function base64ToBytes(s) {
+  return Uint8Array.from(atob(s), c => c.charCodeAt(0));
+}
+
+async function syncNow() {
+  if (!state.cloudSync.enabled) { showToast('Enable sync first'); return; }
+  const url = state.apiKeys.supabaseUrl;
+  const anon = state.apiKeys.supabaseAnon;
+  const userId = state.cloudSync.userId;
+  const passphrase = document.getElementById('sync-passphrase')?.value;
+  if (!url || !anon || !userId || !passphrase) { showToast('Sync settings incomplete'); return; }
+  if (!state.cloudSync.salt) state.cloudSync.salt = arrayBufferToBase64(crypto.getRandomValues(new Uint8Array(16)));
+  const remoteResp = await fetch(`${url.replace(/\/$/, '')}/rest/v1/state_blobs?user_id=eq.${encodeURIComponent(userId)}&select=*`, {
+    headers: { apikey: anon, Authorization: `Bearer ${anon}` }
+  });
+  if (remoteResp.ok) {
+    const rows = await remoteResp.json();
+    const remote = rows?.[0];
+    const remoteTs = remote?.updated_at ? Date.parse(remote.updated_at) : 0;
+    if (remote && remoteTs > (state.cloudSync.lastSyncTs || 0)) {
+      const pulled = await decryptState(remote, passphrase);
+      state = { ...state, ...pulled, cloudSync: { ...state.cloudSync, ...pulled.cloudSync, lastSyncTs: remoteTs } };
+      saveState();
+      renderDashboard();
+      updateStatDisplays();
+      showToast('Cloud backup restored');
+      return;
+    }
+  }
+  const salt = base64ToBytes(state.cloudSync.salt);
+  const key = await deriveKey(passphrase, salt);
+  const encrypted = await encryptState({ ...state, apiKeys: { ...state.apiKeys, anthropic: '', apiBible: '', esv: '', bibleBrain: '' } }, key);
+  const row = { user_id: userId, ciphertext: encrypted.ciphertext, iv: encrypted.iv, salt: state.cloudSync.salt, iterations: 250000, updated_at: new Date().toISOString() };
+  const resp = await fetch(`${url.replace(/\/$/, '')}/rest/v1/state_blobs`, {
+    method: 'POST',
+    headers: { apikey: anon, Authorization: `Bearer ${anon}`, 'content-type': 'application/json', Prefer: 'resolution=merge-duplicates' },
+    body: JSON.stringify(row)
+  });
+  if (!resp.ok) throw new Error(`Sync HTTP ${resp.status}`);
+  state.cloudSync.lastSyncTs = Date.now();
+  saveState();
+  showToast('Cloud backup updated');
 }
 
 function closeModal() {
@@ -1319,6 +1769,8 @@ function closeModal() {
   }
 
   document.getElementById('modal-verses').innerHTML = '';
+  const audioBar = document.getElementById('audio-bar');
+  if (audioBar) { audioBar.hidden = true; audioBar.innerHTML = ''; }
   document.querySelectorAll('.hl-menu').forEach(m => m.remove());
 }
 
@@ -1478,6 +1930,7 @@ function saveOnboarding() {
 
   state.userName         = name;
   state.readingPlan      = plan;
+  state.readingPlanId    = plan;
   state.startOtIndex     = getAbsoluteIndexFromSelection(OT_BOOKS, otBookIdx, otChap);
   state.startPsalmIndex  = psalmChap - 1;
   state.startNtIndex     = getAbsoluteIndexFromSelection(NT_BOOKS, ntBookIdx, ntChap);
@@ -1504,6 +1957,29 @@ function saveOnboarding() {
 /* ===== SETTINGS ===== */
 const FONT_SIZES = [14, 16, 18, 20, 22];
 const FONT_SIZE_LABELS = ['Small', 'Normal', 'Large', 'X-Large', 'XX-Large'];
+
+function refreshTranslationOptions() {
+  const options = [...BIBLE_API_TRANSLATIONS];
+  if (state.apiKeys.apiBible) {
+    Object.keys(API_BIBLE_IDS).forEach(value => {
+      if (!options.some(o => o.value === value)) options.push({ value, label: API_BIBLE_LABELS[value] || `${value.toUpperCase()} (API.Bible)` });
+    });
+  }
+  if (state.apiKeys.esv) options.push({ value: 'esv', label: 'ESV' });
+  ['translation-select', 'ob-translation'].forEach(id => {
+    const sel = document.getElementById(id);
+    if (!sel) return;
+    const current = sel.value || state.settings.translation || 'web';
+    sel.innerHTML = '';
+    options.forEach(o => {
+      const opt = document.createElement('option');
+      opt.value = o.value;
+      opt.textContent = o.label;
+      sel.appendChild(opt);
+    });
+    sel.value = options.some(o => o.value === current) ? current : 'web';
+  });
+}
 
 function initSettings() {
   // Profile
@@ -1569,9 +2045,60 @@ function initSettings() {
   });
 
   // Translation
+  refreshTranslationOptions();
   const transSel = document.getElementById('translation-select');
   transSel.value = state.settings.translation || 'web';
   transSel.addEventListener('change', () => { state.settings.translation = transSel.value; saveState(); });
+
+  const keyFields = [
+    ['api-bible-key', 'apiBible'],
+    ['esv-key', 'esv'],
+    ['bible-brain-key', 'bibleBrain'],
+    ['anthropic-key', 'anthropic'],
+    ['supabase-url', 'supabaseUrl'],
+    ['supabase-anon', 'supabaseAnon']
+  ];
+  keyFields.forEach(([id, key]) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.value = state.apiKeys[key] || '';
+    el.addEventListener('change', () => {
+      const firstAnthropic = key === 'anthropic' && !state.apiKeys.anthropic && el.value.trim();
+      state.apiKeys[key] = el.value.trim();
+      saveState();
+      refreshTranslationOptions();
+      if (firstAnthropic) showConfirm('Claude keys are stored locally in this browser and sent only to api.anthropic.com. Continue?', 'I Understand', () => {});
+    });
+  });
+  document.getElementById('wipe-keys-btn')?.addEventListener('click', () => {
+    state.apiKeys = { ...DEFAULT_STATE.apiKeys };
+    saveState();
+    keyFields.forEach(([id]) => { const el = document.getElementById(id); if (el) el.value = ''; });
+    refreshTranslationOptions();
+    showToast('API keys wiped');
+  });
+
+  const planSelect = document.getElementById('plan-select');
+  if (planSelect) {
+    planSelect.innerHTML = '';
+    PLAN_PRESETS.forEach(p => {
+      const opt = document.createElement('option');
+      opt.value = p.id;
+      opt.textContent = p.label;
+      planSelect.appendChild(opt);
+    });
+    planSelect.value = state.readingPlanId || state.readingPlan || 'standard';
+    planSelect.addEventListener('change', () => {
+      const next = planSelect.value;
+      showConfirm("Changes today's readings. Your completed history is preserved.", 'Switch Plan', () => {
+        state.readingPlanId = next;
+        state.readingPlan = next;
+        saveState();
+        renderDashboard();
+      });
+      planSelect.value = state.readingPlanId || 'standard';
+    });
+  }
 
   // Sound
   const soundToggle = document.getElementById('sound-toggle');
@@ -1590,15 +2117,72 @@ function initSettings() {
     state.settings.reminder = reminderToggle.checked;
     if (reminderTimeRow) reminderTimeRow.style.display = reminderToggle.checked ? 'flex' : 'none';
     saveState();
-    if (reminderToggle.checked && 'Notification' in window) Notification.requestPermission();
+    if (reminderToggle.checked) scheduleReminderIfEnabled();
   });
 
   if (reminderTimeInput) {
     reminderTimeInput.addEventListener('change', () => {
       state.settings.reminderTime = reminderTimeInput.value;
       saveState();
+      scheduleReminderIfEnabled();
     });
   }
+
+  const notifyControls = [
+    ['per-chapter-toggle', 'perChapter'],
+    ['streak-notify-toggle', 'streak'],
+    ['inline-reply-toggle', 'inlineReply']
+  ];
+  notifyControls.forEach(([id, key]) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.checked = state.notifications[key] !== false;
+    el.addEventListener('change', () => { state.notifications[key] = el.checked; saveState(); });
+  });
+  const support = document.getElementById('notification-support');
+  if (support) support.textContent = `Notifications: ${'Notification' in window ? Notification.permission : 'unsupported'}; inline reply: ${('Notification' in window && 'actions' in Notification.prototype) ? 'fallback capable' : 'fallback only'}.`;
+  document.getElementById('calendar-ics-btn')?.addEventListener('click', () => shareIcs());
+
+  const audioAutoplay = document.getElementById('audio-autoplay-toggle');
+  if (audioAutoplay) {
+    audioAutoplay.checked = !!state.audio.autoplay;
+    audioAutoplay.addEventListener('change', () => { state.audio.autoplay = audioAutoplay.checked; saveState(); });
+  }
+  const audioVoice = document.getElementById('audio-voice');
+  if (audioVoice) {
+    audioVoice.value = state.audio.voice || 'ENGESVN2DA';
+    audioVoice.addEventListener('change', () => { state.audio.voice = audioVoice.value.trim() || 'ENGESVN2DA'; saveState(); });
+  }
+  const syncToggle = document.getElementById('sync-toggle');
+  if (syncToggle) {
+    syncToggle.checked = !!state.cloudSync.enabled;
+    syncToggle.addEventListener('change', () => {
+      if (syncToggle.checked) {
+        showConfirm('Cloud backup is encrypted with your passphrase. If you lose it, the backup cannot be recovered.', 'Enable Sync', () => {
+          state.cloudSync.enabled = true;
+          saveState();
+        });
+      } else {
+        state.cloudSync.enabled = false;
+        saveState();
+      }
+    });
+  }
+  const syncUser = document.getElementById('sync-user-id');
+  if (syncUser) {
+    syncUser.value = state.cloudSync.userId || '';
+    syncUser.addEventListener('change', () => { state.cloudSync.userId = syncUser.value.trim() || null; saveState(); });
+  }
+  document.getElementById('sync-now-btn')?.addEventListener('click', () => syncNow().catch(err => showToast(err.message)));
+  document.getElementById('recovery-hint-btn')?.addEventListener('click', () => {
+    const blob = new Blob([JSON.stringify({ salt: state.cloudSync.salt, iterations: 250000 }, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'dtwg-recovery-hint.json';
+    a.click();
+    URL.revokeObjectURL(url);
+  });
 
   // Font size control
   const fontDecBtn   = document.getElementById('font-size-dec');
@@ -1702,12 +2286,20 @@ function closeModalsFromOverlay(e) {
 document.addEventListener('keydown', e => {
   const bibleModal      = document.getElementById('bible-modal');
   const onboardingModal = document.getElementById('onboarding-modal');
+  const palette = document.getElementById('command-palette');
+  if (!palette.hasAttribute('hidden')) {
+    if (e.key === 'Escape') closePalette();
+    return;
+  }
   if (!bibleModal.hasAttribute('hidden')) {
     if (e.key === 'Escape')      closeModal();
     if (e.key === 'ArrowRight')  navigateBibleModal(1);
     if (e.key === 'ArrowLeft')   navigateBibleModal(-1);
   } else if (!onboardingModal.hasAttribute('hidden')) {
     if (e.key === 'Escape' && state.onboardingComplete) onboardingModal.setAttribute('hidden', '');
+  } else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+    e.preventDefault();
+    openPalette();
   }
 });
 
@@ -1778,6 +2370,18 @@ window.addEventListener('load', function() {
   document.getElementById('modal-action-btn').addEventListener('click',   handleModalAction);
   document.getElementById('modal-prev-btn').addEventListener('click',     () => navigateBibleModal(-1));
   document.getElementById('modal-next-btn').addEventListener('click',     () => navigateBibleModal(1));
+  document.getElementById('audio-load-btn').addEventListener('click', () => {
+    if (!currentModalReading) return;
+    mountAudioBar(`${currentModalReading.book}_${currentModalReading.chapter}`).catch(err => showToast(err.message));
+  });
+  document.getElementById('ai-explain-btn').addEventListener('click', () => {
+    if (!currentModalReading) return;
+    explainPassage(currentModalReading.book, currentModalReading.chapter).catch(err => openSideDrawer('AI Commentary', err.message));
+  });
+  document.getElementById('side-drawer-close').addEventListener('click', closeSideDrawer);
+  document.getElementById('side-drawer').addEventListener('click', e => { if (e.target.id === 'side-drawer') closeSideDrawer(); });
+  document.getElementById('command-palette').addEventListener('click', e => { if (e.target.id === 'command-palette') closePalette(); });
+  document.getElementById('palette-input').addEventListener('input', e => renderPaletteResults(e.target.value));
 
   // Swipe navigation in modal body
   const modalBody = document.getElementById('modal-body');
@@ -1824,9 +2428,31 @@ window.addEventListener('load', function() {
 
   // Show onboarding if needed
   if (!state.onboardingComplete) showOnboarding();
+  const params = new URLSearchParams(location.search);
+  if (params.get('focus') === 'journal') {
+    const date = params.get('date');
+    if (date) viewedDate = date;
+    switchPage('dashboard');
+    document.getElementById('journal-textarea').focus();
+  }
 
   // Service worker
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./sw.js').catch(err => console.warn('SW registration failed:', err));
+    navigator.serviceWorker.register('./sw.js').then(() => scheduleReminderIfEnabled()).catch(err => console.warn('SW registration failed:', err));
+    navigator.serviceWorker.addEventListener('message', event => {
+      const msg = event.data || {};
+      if (msg.type === 'markAllComplete') {
+        const dateKey = msg.dateKey || formatDateKey(new Date());
+        state.completed[dateKey] = getReadingPlan(dateKey).map((_, i) => i);
+        saveState();
+        recomputeAllStats();
+        renderDashboard();
+        updateStatDisplays();
+      } else if (msg.type === 'focusJournal') {
+        viewedDate = msg.dateKey || viewedDate;
+        switchPage('dashboard');
+        document.getElementById('journal-textarea').focus();
+      }
+    });
   }
 });

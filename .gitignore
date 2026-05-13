@@ -1,0 +1,9 @@
+# Local secrets and environment overrides
+.env
+.env.*
+!.env.example
+
+# Local development noise
+node_modules/
+.DS_Store
+Thumbs.db
