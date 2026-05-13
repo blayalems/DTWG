@@ -227,19 +227,22 @@ const JOURNAL_PROMPTS = [
 ];
 
 /* ===== STATE ===== */
-const STATE_VERSION = 11;
+const STATE_VERSION = 12;
 
 const DEFAULT_STATE = {
   version: STATE_VERSION,
   onboardingComplete: false,
   userName: 'Friend',
   readingPlan: 'standard',
+  startDate: null,
+  readingPlanId: 'standard',
   startOtIndex: 0,
   startNtIndex: 0,
   startPsalmIndex: 0,
   startPrIndex: 0,
   completed: {},
   highlights: {},
+  verseNotes: {},
   journal: {},
   timeSpent: {},
   streak: 0,
@@ -247,6 +250,10 @@ const DEFAULT_STATE = {
   streakFreezes: 2,
   frozenDays: [],
   streakMilestones: 0,
+  apiKeys: { apiBible: '', anthropic: '', bibleBrain: '' },
+  audio: { autoplay: false, voice: 'ENGESVN2DA' },
+  cloudSync: { enabled: false, userId: null, salt: null, lastSyncTs: 0 },
+  notifications: { perChapter: true, streak: true, inlineReply: false },
   settings: {
     themeMode: 'system',
     appColor: 'purple',
@@ -309,14 +316,39 @@ function setStorage(key, val) {
 
 function loadState() {
   const saved = getStorage('dtwg_state');
+  let needsSave = false;
   if (saved && saved.version) {
     state = { ...JSON.parse(JSON.stringify(DEFAULT_STATE)), ...saved };
     state.settings = { ...DEFAULT_STATE.settings, ...saved.settings };
     if (!state.settings.hlColors) state.settings.hlColors = { ...DEFAULT_STATE.settings.hlColors };
     if (!state.settings.reminderTime) state.settings.reminderTime = '07:00';
     if (!state.settings.fontSize) state.settings.fontSize = 16;
+    if (!state.readingPlanId) state.readingPlanId = state.readingPlan || DEFAULT_STATE.readingPlanId;
+    state.verseNotes = { ...DEFAULT_STATE.verseNotes, ...(saved.verseNotes || {}) };
+    state.apiKeys = { ...DEFAULT_STATE.apiKeys, ...(saved.apiKeys || {}) };
+    state.audio = { ...DEFAULT_STATE.audio, ...(saved.audio || {}) };
+    state.cloudSync = { ...DEFAULT_STATE.cloudSync, ...(saved.cloudSync || {}) };
+    state.notifications = { ...DEFAULT_STATE.notifications, ...(saved.notifications || {}) };
+    needsSave = saved.version !== STATE_VERSION
+      || !Object.prototype.hasOwnProperty.call(saved, 'startDate')
+      || !Object.prototype.hasOwnProperty.call(saved, 'readingPlanId')
+      || !Object.prototype.hasOwnProperty.call(saved, 'verseNotes')
+      || !Object.prototype.hasOwnProperty.call(saved, 'apiKeys')
+      || !Object.prototype.hasOwnProperty.call(saved, 'audio')
+      || !Object.prototype.hasOwnProperty.call(saved, 'cloudSync')
+      || !Object.prototype.hasOwnProperty.call(saved, 'notifications');
     state.version = STATE_VERSION;
   }
+  if (!state.startDate) {
+    // Anchor the reading plan to a fixed origin so daysDiff > 0 from day 2 onwards.
+    // Existing users with completion history snap to their earliest reading day.
+    const completedKeys = Object.keys(state.completed || {});
+    state.startDate = completedKeys.length
+      ? completedKeys.sort()[0]
+      : formatDateKey(new Date());
+    needsSave = true;
+  }
+  if (needsSave) saveState();
 }
 
 function saveState() {
@@ -373,8 +405,8 @@ function getChapterFromIndex(type, idx) {
 }
 
 function getReadingPlan(dateKey) {
-  const today = formatDateKey(new Date());
-  const daysDiff = getDaysDiff(new Date(today + 'T00:00:00'), new Date(dateKey + 'T00:00:00'));
+  const origin = state.startDate || formatDateKey(new Date());
+  const daysDiff = getDaysDiff(new Date(origin + 'T00:00:00'), new Date(dateKey + 'T00:00:00'));
   const plan = state.readingPlan || 'standard';
   const readings = [];
 
