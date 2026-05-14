@@ -1,5 +1,5 @@
 {
-  "version": "1.1.0",
+  "version": "1.1.1",
   "build": "20260514",
-  "notes": "Fixes reading plan anchor, adds auto-update, backup export/import, Android edge-to-edge, new icon"
+  "notes": "Fixes modal swipe accidentally advancing chapter during vertical scroll"
 }

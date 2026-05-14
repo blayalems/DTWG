@@ -1,6 +1,6 @@
 
 /* ===== APP VERSION ===== */
-const APP_VERSION = '1.1.0';
+const APP_VERSION = '1.1.1';
 const UPDATE_CHECK_URL = 'https://blayalems.github.io/DTWG/version.json';
 
 /* ===== TOAST & CONFIRM UTILITIES ===== */
@@ -1022,6 +1022,7 @@ let currentModalIdx       = -1;
 let currentReadingStartTime = null;
 let lastActivity          = Date.now();
 let touchStartX           = 0;
+let touchStartY           = 0;
 let currentChapterData    = null;
 
 document.addEventListener('touchstart', () => { lastActivity = Date.now(); }, { passive: true });
@@ -2507,12 +2508,21 @@ window.addEventListener('load', function() {
   document.getElementById('command-palette').addEventListener('click', e => { if (e.target.id === 'command-palette') closePalette(); });
   document.getElementById('palette-input').addEventListener('input', e => renderPaletteResults(e.target.value));
 
-  // Swipe navigation in modal body
+  // Swipe navigation in modal body — only fires on clearly horizontal swipes
+  // so that normal vertical scrolling never accidentally advances the chapter.
   const modalBody = document.getElementById('modal-body');
-  modalBody.addEventListener('touchstart', e => { touchStartX = e.touches[0].clientX; }, { passive: true });
-  modalBody.addEventListener('touchend',   e => {
-    const diff = touchStartX - e.changedTouches[0].clientX;
-    if (Math.abs(diff) > 50) navigateBibleModal(diff > 0 ? 1 : -1);
+  modalBody.addEventListener('touchstart', e => {
+    touchStartX = e.touches[0].clientX;
+    touchStartY = e.touches[0].clientY;
+  }, { passive: true });
+  modalBody.addEventListener('touchend', e => {
+    const dx = touchStartX - e.changedTouches[0].clientX;
+    const dy = touchStartY - e.changedTouches[0].clientY;
+    // Require >60px horizontal travel AND horizontal must be 2.5× the vertical
+    // drift so vertical scrolls with slight lean never trigger chapter advance.
+    if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 2.5) {
+      navigateBibleModal(dx > 0 ? 1 : -1);
+    }
   }, { passive: true });
 
   // Mercy banner close
