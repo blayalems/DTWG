@@ -3,11 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="DTWG">
     <title>Daily Time with God</title>
     <link rel="manifest" href="./manifest.json">
     <meta name="theme-color" content="#6750A4" id="meta-theme-color">
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📖</text></svg>">
-    <link rel="apple-touch-icon" sizes="192x192" href="./icons/icon-192.png">
+    <link rel="icon" type="image/svg+xml" href="./icons/icon.svg">
+    <link rel="apple-touch-icon" href="./icons/icon-192.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -19,8 +23,13 @@
 
 <header id="app-header">
   <div class="header-inner">
-    <span class="header-greeting" id="header-greeting">Good morning,</span>
-    <span class="header-name" id="header-name">Friend</span>
+    <div class="header-logo-row">
+      <img src="./icons/icon.svg" class="header-logo" alt="DTWG" width="28" height="28">
+      <div>
+        <span class="header-greeting" id="header-greeting">Good morning,</span>
+        <span class="header-name" id="header-name">Friend</span>
+      </div>
+    </div>
   </div>
   <button id="header-streak" class="streak-chip" aria-label="Streak">
     <span class="material-symbols-rounded">local_fire_department</span>
@@ -40,6 +49,18 @@
       </div>
       <button id="install-btn" class="install-btn">Install</button>
       <button id="install-dismiss-btn" class="mercy-close" aria-label="Dismiss">
+        <span class="material-symbols-rounded">close</span>
+      </button>
+    </div>
+
+    <div id="update-banner" class="install-banner update-banner" hidden>
+      <span class="material-symbols-rounded">system_update</span>
+      <div>
+        <strong id="update-banner-title">Update available</strong>
+        <p id="update-banner-notes">A new version is ready to install.</p>
+      </div>
+      <button id="update-apply-btn" class="install-btn">Update</button>
+      <button id="update-dismiss-btn" class="mercy-close" aria-label="Dismiss update">
         <span class="material-symbols-rounded">close</span>
       </button>
     </div>
@@ -375,6 +396,43 @@
         <button class="secondary-btn" id="recovery-hint-btn">Recovery Hint</button>
       </div>
       <p class="settings-desc danger-text">Passphrase loss means cloud data cannot be recovered.</p>
+    </div>
+
+    <div class="settings-card">
+      <h3 class="settings-card-title">Backup &amp; Restore</h3>
+      <div class="settings-row">
+        <label>Export data</label>
+        <button class="secondary-btn" id="export-backup-btn">
+          <span class="material-symbols-rounded" style="font-size:16px;vertical-align:-3px">download</span>
+          Export JSON
+        </button>
+      </div>
+      <div class="settings-row">
+        <label>Import data</label>
+        <label class="secondary-btn" id="import-backup-label" for="import-backup-file" style="cursor:pointer">
+          <span class="material-symbols-rounded" style="font-size:16px;vertical-align:-3px">upload</span>
+          Import JSON
+        </label>
+        <input type="file" id="import-backup-file" accept=".json,application/json" style="display:none">
+      </div>
+      <p class="settings-desc">Backups are compatible across all app versions.</p>
+    </div>
+
+    <div class="settings-card">
+      <h3 class="settings-card-title">App Version</h3>
+      <div class="settings-row">
+        <span class="settings-label-text">Installed</span>
+        <span class="version-badge" id="installed-version">v1.5.0</span>
+      </div>
+      <div class="settings-row" id="online-version-row" hidden>
+        <span class="settings-label-text">Online</span>
+        <span class="version-badge version-badge-online" id="online-version">—</span>
+      </div>
+      <div class="settings-row" id="update-available-row" hidden>
+        <span class="settings-label-text update-dot">Update ready</span>
+        <button class="secondary-btn" id="settings-update-btn">Install</button>
+      </div>
+      <button class="secondary-btn" id="check-update-btn" style="margin-top:4px">Check for updates</button>
     </div>
 
     <div class="settings-card">

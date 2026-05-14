@@ -26,7 +26,7 @@ A beautiful, Material Design 3 Progressive Web App for building a consistent dai
 
 DTWG is still a serverless PWA. Premium Bible providers, Claude commentary, Bible Brain audio, and Supabase backup use bring-your-own keys stored in this browser's localStorage. Keys are not encrypted by DTWG and are sent directly from the browser to the selected provider.
 
-Android notifications use the Web Notifications API. Delivery is best-effort, browser-throttled, and limited to standard web notification fields and actions; native Android NotificationCompat layouts are not available to Chrome PWAs.
+Android support includes both the installable PWA and a native WebView wrapper under `android/`. The native wrapper opens the GitHub Pages PWA and exposes a `DTWGAndroid` bridge for reading-progress notifications, app-widget updates, haptics, and file sharing.
 
 Local development secrets belong in `.env`, which is ignored by Git. Because GitHub Pages serves static files, `.env` is not a secure runtime secret store for the deployed app; production keys must still be entered by the user or mediated by a secured backend.
 

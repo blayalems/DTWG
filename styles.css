@@ -1239,3 +1239,84 @@ button:focus:not(:focus-visible), input:focus:not(:focus-visible) { outline: non
 
 /* ===== REMINDER TIME ROW ===== */
 #reminder-time-row { display: none; }
+
+/* ===== EDGE-TO-EDGE / FULLSCREEN ===== */
+/* When running as fullscreen PWA, system bars are gone — add extra top padding */
+@media (display-mode: fullscreen) {
+  #app-header {
+    padding-top: max(env(safe-area-inset-top, 0px), 20px);
+  }
+  #main-content {
+    top: calc(max(env(safe-area-inset-top, 0px), 20px) + var(--header-height));
+  }
+}
+/* Standalone: content flows behind translucent system bars on Android */
+@media (display-mode: standalone) {
+  #app-header {
+    padding-top: calc(env(safe-area-inset-top, 0px) + 12px);
+  }
+}
+
+/* ===== HEADER LOGO ===== */
+.header-logo-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.header-logo {
+  width: 30px; height: 30px;
+  border-radius: 8px;
+  flex-shrink: 0;
+  box-shadow: 0 1px 4px rgba(0,0,0,.18);
+}
+.header-inner .header-logo-row > div {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+/* ===== UPDATE BANNER ===== */
+.update-banner {
+  background: linear-gradient(135deg, #1565C0 0%, #0D47A1 100%) !important;
+}
+.update-banner[hidden] { display: none !important; }
+
+/* ===== VERSION BADGE ===== */
+.version-badge {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 3px 10px;
+  background: var(--md-surface-variant);
+  color: var(--md-on-surface-variant);
+  border-radius: 20px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+.version-badge-online {
+  background: rgba(46,125,50,.14);
+  color: #2E7D32;
+}
+[data-theme="dark"] .version-badge-online {
+  background: rgba(76,175,80,.18);
+  color: #81C784;
+}
+.update-dot::after {
+  content: '';
+  display: inline-block;
+  width: 7px; height: 7px;
+  background: #E65100;
+  border-radius: 50%;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+.settings-label-text {
+  font-size: 14px;
+  color: var(--md-on-surface-variant);
+}
+
+/* ===== DESKTOP: constrain update/version rows ===== */
+@media (min-width: 900px) {
+  #page-dashboard .update-banner {
+    max-width: 720px; margin-left: auto; margin-right: auto;
+  }
+}
