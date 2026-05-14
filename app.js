@@ -1,4 +1,8 @@
 
+/* ===== APP VERSION ===== */
+const APP_VERSION = '1.1.0';
+const UPDATE_CHECK_URL = 'https://blayalems.github.io/DTWG/version.json';
+
 /* ===== TOAST & CONFIRM UTILITIES ===== */
 let toastTimer = null;
 function showToast(msg, duration = 2500) {
@@ -1579,7 +1583,10 @@ async function scheduleReminderIfEnabled() {
 function notifyProgress(dateKey) {
   const readings = getReadingPlan(dateKey);
   const done = (state.completed[dateKey] || []).length;
-  if (state.notifications?.perChapter) postToSW({ type: 'updateProgress', dateKey, done, total: readings.length, state });
+  if (state.notifications?.perChapter) {
+    postToSW({ type: 'updateProgress', dateKey, done, total: readings.length, readings, state });
+  }
+  updateAppBadge(dateKey);
 }
 
 function checkMilestoneNotifications(prevStreak) {
@@ -1589,6 +1596,126 @@ function checkMilestoneNotifications(prevStreak) {
       postToSW({ type: 'milestone', milestone: n });
     }
   });
+}
+
+/* ===== APP BADGE (Android 16 Live Updates) ===== */
+function updateAppBadge(dateKey) {
+  if (!('setAppBadge' in navigator)) return;
+  const readings = getReadingPlan(dateKey || formatDateKey(new Date()));
+  const done = (state.completed[dateKey || formatDateKey(new Date())] || []).length;
+  const remaining = readings.length - done;
+  if (remaining <= 0) {
+    navigator.clearAppBadge?.().catch(() => {});
+  } else {
+    navigator.setAppBadge(remaining).catch(() => {});
+  }
+}
+
+/* ===== AUTO-UPDATE ===== */
+let _updateDismissed = false;
+
+async function checkForUpdate() {
+  try {
+    const res = await fetch(UPDATE_CHECK_URL + '?_=' + Date.now(), {
+      cache: 'no-store',
+      signal: AbortSignal.timeout?.(8000)
+    });
+    if (!res.ok) return null;
+    const remote = await res.json();
+    const onlineEl = document.getElementById('online-version');
+    if (onlineEl) onlineEl.textContent = 'v' + (remote.version || '?');
+    document.getElementById('online-version-row')?.removeAttribute('hidden');
+    if (remote.version && remote.version !== APP_VERSION && !_updateDismissed) {
+      showUpdateBanner(remote.version, remote.notes);
+    }
+    return remote;
+  } catch {
+    return null;
+  }
+}
+
+function showUpdateBanner(version, notes) {
+  const banner = document.getElementById('update-banner');
+  if (!banner) return;
+  const titleEl = document.getElementById('update-banner-title');
+  const notesEl = document.getElementById('update-banner-notes');
+  if (titleEl) titleEl.textContent = `Version ${version} available`;
+  if (notesEl) notesEl.textContent = notes || 'A new version is ready to install.';
+  banner.hidden = false;
+  document.getElementById('update-available-row')?.removeAttribute('hidden');
+}
+
+async function applyUpdate() {
+  document.getElementById('update-banner')?.setAttribute('hidden', '');
+  if ('serviceWorker' in navigator) {
+    try {
+      const reg = await navigator.serviceWorker.getRegistration();
+      if (reg) await reg.update();
+    } catch {}
+  }
+  const keys = await caches.keys().catch(() => []);
+  await Promise.all(keys.map(k => caches.delete(k).catch(() => {})));
+  location.reload();
+}
+
+/* ===== BACKUP EXPORT / IMPORT ===== */
+const BACKUP_FIELDS = [
+  'userName', 'readingPlan', 'readingPlanId', 'startDate',
+  'startOtIndex', 'startNtIndex', 'startPsalmIndex', 'startPrIndex',
+  'customPlan', 'completed', 'highlights', 'verseNotes', 'journal',
+  'timeSpent', 'streak', 'longestStreak', 'streakFreezes', 'frozenDays',
+  'streakMilestones', 'settings', 'notifications', 'onboardingComplete'
+];
+
+function exportBackup() {
+  const payload = { _dtwg: true, exportedAt: new Date().toISOString(), appVersion: APP_VERSION, data: {} };
+  BACKUP_FIELDS.forEach(f => { if (state[f] !== undefined) payload.data[f] = state[f]; });
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `dtwg-backup-${formatDateKey(new Date())}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast('Backup exported');
+}
+
+function importBackup(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const parsed = JSON.parse(e.target.result);
+      // Accept both wrapped format { _dtwg, data } and raw state objects (forward compat)
+      const data = parsed._dtwg ? parsed.data : parsed;
+      if (!data || typeof data !== 'object') throw new Error('Unrecognised format');
+      // Field-by-field merge — unknown fields are ignored, missing fields keep current value
+      BACKUP_FIELDS.forEach(f => {
+        if (data[f] === undefined) return;
+        if (f === 'settings' && typeof data[f] === 'object') {
+          state.settings = { ...DEFAULT_STATE.settings, ...state.settings, ...data[f] };
+        } else {
+          state[f] = data[f];
+        }
+      });
+      state.version = STATE_VERSION;
+      state.onboardingComplete = true;
+      saveState();
+      recomputeAllStats();
+      applyTheme(state.settings.themeMode || 'system');
+      applyAppColor(state.settings.appColor, state.settings.customColor);
+      applyHighlightColors(state.settings.hlColors);
+      renderDashboard();
+      updateHeaderName();
+      updateStatDisplays();
+      showToast('Backup restored successfully');
+    } catch (err) {
+      showToast('Import failed: ' + err.message);
+    }
+  };
+  reader.readAsText(file);
 }
 
 let searchIndex = null;
@@ -2423,6 +2550,32 @@ window.addEventListener('load', function() {
   if (installBtn) installBtn.addEventListener('click', installApp);
   if (installDismissBtn) installDismissBtn.addEventListener('click', dismissInstallBanner);
 
+  // Update banner buttons
+  document.getElementById('update-apply-btn')?.addEventListener('click', applyUpdate);
+  document.getElementById('update-dismiss-btn')?.addEventListener('click', () => {
+    _updateDismissed = true;
+    document.getElementById('update-banner').hidden = true;
+  });
+  document.getElementById('settings-update-btn')?.addEventListener('click', applyUpdate);
+  document.getElementById('check-update-btn')?.addEventListener('click', () => {
+    showToast('Checking for updates…');
+    checkForUpdate().then(r => { if (r && r.version === APP_VERSION) showToast('Already up to date'); });
+  });
+
+  // Version display
+  const installedEl = document.getElementById('installed-version');
+  if (installedEl) installedEl.textContent = 'v' + APP_VERSION;
+
+  // Backup buttons
+  document.getElementById('export-backup-btn')?.addEventListener('click', exportBackup);
+  const importFile = document.getElementById('import-backup-file');
+  if (importFile) {
+    importFile.addEventListener('change', e => {
+      importBackup(e.target.files[0]);
+      e.target.value = '';
+    });
+  }
+
   // Show onboarding if needed
   if (!state.onboardingComplete) showOnboarding();
   const params = new URLSearchParams(location.search);
@@ -2445,11 +2598,20 @@ window.addEventListener('load', function() {
         recomputeAllStats();
         renderDashboard();
         updateStatDisplays();
+        updateAppBadge(dateKey);
       } else if (msg.type === 'focusJournal') {
         viewedDate = msg.dateKey || viewedDate;
         switchPage('dashboard');
         document.getElementById('journal-textarea').focus();
+      } else if (msg.type === 'updateAvailable') {
+        showUpdateBanner(msg.version, msg.notes);
       }
     });
   }
+
+  // Auto-update check (deferred so it doesn't block render)
+  setTimeout(() => checkForUpdate(), 3000);
+
+  // Update app badge for today on load
+  updateAppBadge(formatDateKey(new Date()));
 });

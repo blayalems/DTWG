@@ -1,0 +1,5 @@
+{
+  "version": "1.1.0",
+  "build": "20260514",
+  "notes": "Fixes reading plan anchor, adds auto-update, backup export/import, Android edge-to-edge, new icon"
+}

@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#9B78E0"/>
+      <stop offset="100%" stop-color="#4527A0"/>
+    </linearGradient>
+    <linearGradient id="page" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.97"/>
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0.82"/>
+    </linearGradient>
+  </defs>
+  <!-- App background (squircle) -->
+  <rect width="100" height="100" rx="22" fill="url(#bg)"/>
+  <!-- Subtle top-left shine -->
+  <ellipse cx="32" cy="16" rx="28" ry="11" fill="white" opacity="0.07"/>
+  <!-- Left Bible page -->
+  <path d="M15,71 L15,37 Q15,32 21,31 C30,30 40,31 49,34 L49,74 Q39,71 26,72 Q15,73 15,71 Z" fill="url(#page)"/>
+  <!-- Left page text lines -->
+  <line x1="22" y1="43" x2="45" y2="43" stroke="#6A3DB8" stroke-width="1.6" opacity="0.22" stroke-linecap="round"/>
+  <line x1="22" y1="50" x2="45" y2="50" stroke="#6A3DB8" stroke-width="1.6" opacity="0.22" stroke-linecap="round"/>
+  <line x1="22" y1="57" x2="45" y2="57" stroke="#6A3DB8" stroke-width="1.6" opacity="0.22" stroke-linecap="round"/>
+  <line x1="22" y1="64" x2="36" y2="64" stroke="#6A3DB8" stroke-width="1.6" opacity="0.22" stroke-linecap="round"/>
+  <!-- Right Bible page -->
+  <path d="M85,71 L85,37 Q85,32 79,31 C70,30 60,31 51,34 L51,74 Q61,71 74,72 Q85,73 85,71 Z" fill="url(#page)" opacity="0.78"/>
+  <!-- Book spine -->
+  <rect x="48" y="31" width="4" height="44" rx="2" fill="rgba(255,255,255,0.28)"/>
+  <!-- Cross — vertical bar -->
+  <rect x="45.5" y="8" width="9" height="28" rx="3.5" fill="white" opacity="0.96"/>
+  <!-- Cross — horizontal bar -->
+  <rect x="36" y="17" width="28" height="9" rx="3.5" fill="white" opacity="0.96"/>
+</svg>
