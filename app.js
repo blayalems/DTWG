@@ -1594,7 +1594,7 @@ function openNotePopover(verseEl, refKey, verseText) {
     if (!state.verseNotes) state.verseNotes = {};
     const text = textarea.value.trim();
     if (text) {
-      state.verseNotes[refKey] = { text, ts: Date.now(), verseText };
+      state.verseNotes[refKey] = { text, ts: Date.now(), date: viewedDate, verseText };
       verseEl.classList.add('has-note');
     } else {
       delete state.verseNotes[refKey];
@@ -1797,11 +1797,30 @@ async function scheduleReminderIfEnabled() {
 
 function notifyProgress(dateKey) {
   const readings = getReadingPlan(dateKey);
-  const done = (state.completed[dateKey] || []).length;
+  const done = completedReadingCount(readings, getCompletedKeys(dateKey, readings));
   if (state.notifications?.perChapter) {
     postToSW({ type: 'updateProgress', dateKey, done, total: readings.length, readings, state });
   }
-  updateAppBadge(dateKey);
+  if (dateKey === formatDateKey(new Date())) postNativeReadingProgress(dateKey, readings, done);
+  updateAppBadge();
+}
+
+function postNativeReadingProgress(dateKey, readings, done) {
+  const bridge = window.DTWGAndroid;
+  if (!bridge || typeof bridge.onReadingState !== 'function') return;
+  const total = readings.length;
+  const next = readings[done] || null;
+  const snap = {
+    phase: total > 0 && done >= total ? 'complete' : 'reading',
+    dateKey,
+    dayTitle: 'Daily Time with God',
+    progressText: `${done}/${total} readings`,
+    done,
+    total,
+    nextTitle: next ? `${next.book} ${next.chapter}` : '',
+    startedAt: Date.now()
+  };
+  try { bridge.onReadingState(JSON.stringify(snap)); } catch {}
 }
 
 function checkMilestoneNotifications(prevStreak) {
@@ -1814,16 +1833,45 @@ function checkMilestoneNotifications(prevStreak) {
 }
 
 /* ===== APP BADGE (Android 16 Live Updates) ===== */
-function updateAppBadge(dateKey) {
+function updateAppBadge() {
   if (!('setAppBadge' in navigator)) return;
-  const readings = getReadingPlan(dateKey || formatDateKey(new Date()));
-  const done = (state.completed[dateKey || formatDateKey(new Date())] || []).length;
+  const dateKey = formatDateKey(new Date());
+  const readings = getReadingPlan(dateKey);
+  const done = completedReadingCount(readings, getCompletedKeys(dateKey, readings));
   const remaining = readings.length - done;
   if (remaining <= 0) {
     navigator.clearAppBadge?.().catch(() => {});
   } else {
     navigator.setAppBadge(remaining).catch(() => {});
   }
+}
+
+function handleNativeNotificationAction(action, dateOverride) {
+  const dateKey = dateOverride || formatDateKey(new Date());
+  if (action === 'complete') {
+    const prevStreak = state.streak || 0;
+    state.completed[dateKey] = getReadingPlan(dateKey).map(readingCompletionKey);
+    saveState();
+    recomputeAllStats();
+    checkMilestoneNotifications(prevStreak);
+    updateStatDisplays();
+    viewedDate = dateKey;
+    switchPage('dashboard');
+    notifyProgress(dateKey);
+    return;
+  }
+  viewedDate = dateKey;
+  switchPage('dashboard');
+}
+
+function bindNativeAndroidBridge() {
+  window.__dtwgNativeActionReady = true;
+  window.__dtwgDispatchNativeAction = handleNativeNotificationAction;
+  (window.__dtwgPendingNativeActions || []).splice(0).forEach(handleNativeNotificationAction);
+  window.addEventListener('dtwgNativeAction', event => handleNativeNotificationAction(event.detail || 'open'));
+  const params = new URLSearchParams(location.search);
+  const action = params.get('notifAction');
+  if (action) handleNativeNotificationAction(action, params.get('date'));
 }
 
 /* ===== AUTO-UPDATE ===== */
@@ -1917,6 +1965,7 @@ function importBackup(file) {
       });
       state.version = STATE_VERSION;
       state.onboardingComplete = true;
+      migrateCompletedReadingKeys();
       saveState();
       recomputeAllStats();
       applyTheme(state.settings.themeMode || 'system');
@@ -2094,6 +2143,15 @@ function closeModal() {
   const modal = document.getElementById('bible-modal');
   modal.setAttribute('hidden', '');
 
+  commitReadingTime();
+
+  document.getElementById('modal-verses').innerHTML = '';
+  const audioBar = document.getElementById('audio-bar');
+  if (audioBar) { audioBar.hidden = true; audioBar.innerHTML = ''; }
+  document.querySelectorAll('.hl-menu').forEach(m => m.remove());
+}
+
+function commitReadingTime() {
   if (currentReadingStartTime) {
     const elapsed = Math.floor((Date.now() - currentReadingStartTime) / 1000);
     const isActive = Date.now() - lastActivity < 120000;
@@ -2105,11 +2163,6 @@ function closeModal() {
     }
     currentReadingStartTime = null;
   }
-
-  document.getElementById('modal-verses').innerHTML = '';
-  const audioBar = document.getElementById('audio-bar');
-  if (audioBar) { audioBar.hidden = true; audioBar.innerHTML = ''; }
-  document.querySelectorAll('.hl-menu').forEach(m => m.remove());
 }
 
 function navigateBibleModal(direction) {
@@ -2117,13 +2170,15 @@ function navigateBibleModal(direction) {
   const newIdx = currentModalIdx + direction;
   if (newIdx < 0 || newIdx >= readings.length) return;
   const reading = readings[newIdx];
+  commitReadingTime();
   openBibleModal(reading.book, reading.chapter, newIdx);
 }
 
 function handleModalAction() {
   if (currentModalIdx >= 0) {
     toggleCheck(currentModalIdx);
-    const isChecked = (state.completed[viewedDate] || []).includes(currentModalIdx);
+    const readings = getReadingPlan(viewedDate);
+    const isChecked = isReadingCompleted(readings[currentModalIdx], getCompletedKeys(viewedDate, readings));
     updateModalActionBtn(isChecked);
   }
 }
@@ -2176,8 +2231,9 @@ function shootConfetti() {
 /* ===== ONBOARDING ===== */
 function initOnboardingDropdowns() {
   const otBookSel = document.getElementById('ob-ot-book');
+  const otBooks = typeof OT_READING_BOOKS !== 'undefined' ? OT_READING_BOOKS : OT_BOOKS;
   otBookSel.innerHTML = '';
-  OT_BOOKS.forEach((b, i) => {
+  otBooks.forEach((b, i) => {
     const opt = document.createElement('option');
     opt.value = i;
     opt.textContent = b[0];
@@ -2210,10 +2266,11 @@ function initOnboardingDropdowns() {
 
 function updateChapSelect(type) {
   if (type === 'ot') {
+    const otBooks = typeof OT_READING_BOOKS !== 'undefined' ? OT_READING_BOOKS : OT_BOOKS;
     const bookIdx = parseInt(document.getElementById('ob-ot-book').value);
     const chapSel = document.getElementById('ob-ot-chap');
     chapSel.innerHTML = '';
-    for (let c = 1; c <= OT_BOOKS[bookIdx][1]; c++) {
+    for (let c = 1; c <= otBooks[bookIdx][1]; c++) {
       const opt = document.createElement('option');
       opt.value = c;
       opt.textContent = `Chapter ${c}`;
@@ -2255,6 +2312,7 @@ function prevObPage() {
 }
 
 function saveOnboarding() {
+  const otBooks = typeof OT_READING_BOOKS !== 'undefined' ? OT_READING_BOOKS : OT_BOOKS;
   const name       = document.getElementById('ob-name').value.trim() || 'Friend';
   const plan       = document.getElementById('ob-plan').value;
   const otBookIdx  = parseInt(document.getElementById('ob-ot-book').value);
@@ -2270,7 +2328,7 @@ function saveOnboarding() {
   state.readingPlan      = plan;
   state.readingPlanId    = plan;
   state.startDate        = formatDateKey(new Date());
-  state.startOtIndex     = getAbsoluteIndexFromSelection(OT_BOOKS, otBookIdx, otChap);
+  state.startOtIndex     = getAbsoluteIndexFromSelection(otBooks, otBookIdx, otChap);
   state.startPsalmIndex  = psalmChap - 1;
   state.startNtIndex     = getAbsoluteIndexFromSelection(NT_BOOKS, ntBookIdx, ntChap);
   state.startPrIndex     = 0;
@@ -2423,7 +2481,9 @@ function initSettings() {
     PLAN_PRESETS.forEach(p => {
       const opt = document.createElement('option');
       opt.value = p.id;
-      opt.textContent = p.label;
+      const customUnavailable = p.id === 'custom' && (!Array.isArray(state.customPlan) || state.customPlan.length === 0);
+      opt.textContent = customUnavailable ? 'Custom (not configured)' : p.label;
+      opt.disabled = customUnavailable;
       planSelect.appendChild(opt);
     });
     planSelect.value = state.readingPlanId || state.readingPlan || 'standard';
@@ -2817,7 +2877,7 @@ window.addEventListener('load', function() {
       const msg = event.data || {};
       if (msg.type === 'markAllComplete') {
         const dateKey = msg.dateKey || formatDateKey(new Date());
-        state.completed[dateKey] = getReadingPlan(dateKey).map((_, i) => i);
+        state.completed[dateKey] = getReadingPlan(dateKey).map(readingCompletionKey);
         saveState();
         recomputeAllStats();
         renderDashboard();
