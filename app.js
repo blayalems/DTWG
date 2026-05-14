@@ -330,12 +330,8 @@ function loadState() {
     state.version = STATE_VERSION;
   }
   if (!state.startDate) {
-    // Anchor the reading plan to a fixed origin so daysDiff > 0 from day 2 onwards.
-    // Existing users with completion history snap to their earliest reading day.
-    const completedKeys = Object.keys(state.completed || {});
-    state.startDate = completedKeys.length
-      ? completedKeys.sort()[0]
-      : formatDateKey(new Date());
+    // Anchor to today so daysDiff=0 for today's reading regardless of prior history.
+    state.startDate = formatDateKey(new Date());
     needsSave = true;
   }
   if (needsSave) saveState();
@@ -1931,6 +1927,7 @@ function saveOnboarding() {
   state.userName         = name;
   state.readingPlan      = plan;
   state.readingPlanId    = plan;
+  state.startDate        = formatDateKey(new Date());
   state.startOtIndex     = getAbsoluteIndexFromSelection(OT_BOOKS, otBookIdx, otChap);
   state.startPsalmIndex  = psalmChap - 1;
   state.startNtIndex     = getAbsoluteIndexFromSelection(NT_BOOKS, ntBookIdx, ntChap);
