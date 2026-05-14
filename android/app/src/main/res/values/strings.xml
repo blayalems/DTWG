@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">DTWG</string>
+    <string name="notif_channel_name">Daily Reading</string>
+    <string name="notif_channel_desc">Shows daily Bible reading progress and quick actions</string>
+    <string name="widget_desc">DTWG reading progress widget</string>
+    <string name="widget_ready">Ready to read</string>
+    <string name="widget_detail_idle">Tap to open today\'s readings</string>
+</resources>

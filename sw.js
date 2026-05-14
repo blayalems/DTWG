@@ -1,8 +1,8 @@
 // Service Worker for Daily Time with God (DTWG)
 importScripts('./plan.js');
 
-const SW_VERSION = '1.1.1';
-const CACHE_NAME = 'dtwg-v1.1.1';
+const SW_VERSION = '1.5.0';
+const CACHE_NAME = 'dtwg-v1.5.0';
 const UPDATE_CHECK_URL = 'https://blayalems.github.io/DTWG/version.json';
 
 let latestState = null;
@@ -158,18 +158,21 @@ function scheduleReminder(time) {
 
 async function showDaily() {
   const plan = computeTodayPlan();
+  const actions = [
+    { action: 'open',     title: 'Open' },
+    { action: 'complete', title: 'Done' },
+    { action: 'snooze',   title: '+1h' }
+  ];
+  if (latestState?.notifications?.inlineReply === true) {
+    actions.push({ action: 'reply', title: 'Reflect', type: 'text', placeholder: 'Today...' });
+  }
   await self.registration.showNotification('Daily Time with God', {
     body: plan.map(r => `• ${r.book} ${r.chapter}`).join('\n'),
     tag: 'dtwg-daily',
     renotify: true,
     icon: './icons/icon-192.png',
     badge: './icons/icon-192.png',
-    actions: [
-      { action: 'open',     title: 'Open' },
-      { action: 'complete', title: 'Done' },
-      { action: 'snooze',   title: '+1h' },
-      { action: 'reply',    title: 'Reflect', type: 'text', placeholder: 'Today…' }
-    ],
+    actions,
     data: { plan, dateKey: todayKey() }
   });
 }
@@ -227,7 +230,7 @@ async function handleNotificationClick(event) {
 
   if (event.action === 'complete') {
     if (client) client.postMessage({ type: 'markAllComplete', dateKey });
-    else await self.clients.openWindow('./index.html');
+    else await self.clients.openWindow(`./index.html?notifAction=complete&date=${dateKey || todayKey()}`);
   } else if (event.action === 'snooze') {
     setTimeout(showDaily, 60 * 60 * 1000);
   } else if (event.action === 'reply') {

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="dtwg_purple">#FF6750A4</color>
+    <color name="dtwg_blue">#FF1565C0</color>
+    <color name="dtwg_gold">#FFFFB300</color>
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+</resources>
