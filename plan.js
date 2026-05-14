@@ -19,7 +19,12 @@ var NT_BOOKS = [
   ['1 John',5],['2 John',1],['3 John',1],['Jude',1],['Revelation',22]
 ];
 
+var OT_READING_BOOKS = OT_BOOKS.filter(function(book) {
+  return book[0] !== 'Psalms' && book[0] !== 'Proverbs';
+});
+
 var TOTAL_OT = OT_BOOKS.reduce(function(s,b) { return s + b[1]; }, 0);
+var TOTAL_OT_READING = OT_READING_BOOKS.reduce(function(s,b) { return s + b[1]; }, 0);
 var TOTAL_NT = NT_BOOKS.reduce(function(s,b) { return s + b[1]; }, 0);
 var TOTAL_PSALMS = 150;
 var TOTAL_PROVERBS = 31;
@@ -82,7 +87,7 @@ function getBookAndChapterFromIndex(books, absIdx) {
 }
 
 function getChapterFromIndex(type, idx) {
-  if (type === 'ot') return getBookAndChapterFromIndex(OT_BOOKS, mod(idx, TOTAL_OT));
+  if (type === 'ot') return getBookAndChapterFromIndex(OT_READING_BOOKS, mod(idx, TOTAL_OT_READING));
   if (type === 'nt') return getBookAndChapterFromIndex(NT_BOOKS, mod(idx, TOTAL_NT));
   if (type === 'psalm') return { book:'Psalms', chapter: mod(idx, TOTAL_PSALMS) + 1 };
   if (type === 'proverb') return { book:'Proverbs', chapter: mod(idx, TOTAL_PROVERBS) + 1 };
@@ -134,8 +139,10 @@ function computePlan(planId, startDate, dateKey, options) {
     ].map(function(c, i) { return { type:'mcheyne', label:"M'Cheyne " + (i + 1), book:c.book, chapter:c.chapter }; });
   } else if (planId === 'bible90') {
     readings = streamFromBooks(OT_BOOKS.concat(NT_BOOKS), Math.max(0, daysDiff) * 13, 13, 'Bible 90');
-  } else if (planId === 'custom' && Array.isArray(options.customPlan) && options.customPlan.length) {
-    readings = options.customPlan[mod(daysDiff, options.customPlan.length)] || [];
+  } else if (planId === 'custom') {
+    readings = Array.isArray(options.customPlan) && options.customPlan.length
+      ? (options.customPlan[mod(daysDiff, options.customPlan.length)] || [])
+      : [];
   } else {
     return computePlan('standard', startDate, dateKey, options);
   }
@@ -154,5 +161,5 @@ function getReadingPlanForState(appState, dateKey) {
 }
 
 if (typeof self !== 'undefined') {
-  self.DTWGPlan = { OT_BOOKS, NT_BOOKS, PLAN_PRESETS, computePlan, getReadingPlanForState, formatDateKey };
+  self.DTWGPlan = { OT_BOOKS, OT_READING_BOOKS, NT_BOOKS, PLAN_PRESETS, computePlan, getReadingPlanForState, formatDateKey };
 }
