@@ -2882,11 +2882,23 @@ window.addEventListener('load', function() {
         recomputeAllStats();
         renderDashboard();
         updateStatDisplays();
-        updateAppBadge(dateKey);
+        updateAppBadge();
       } else if (msg.type === 'focusJournal') {
         viewedDate = msg.dateKey || viewedDate;
         switchPage('dashboard');
-        document.getElementById('journal-textarea').focus();
+        const textarea = document.getElementById('journal-textarea');
+        if (msg.draft && String(msg.draft).trim()) {
+          const draft = String(msg.draft).trim();
+          const current = state.journal[viewedDate] || '';
+          state.journal[viewedDate] = current ? `${current}\n\n${draft}` : draft;
+          textarea.value = state.journal[viewedDate];
+          saveState();
+        }
+        textarea.focus();
+      } else if (msg.type === 'navigate') {
+        viewedDate = msg.dateKey || formatDateKey(new Date());
+        switchPage('dashboard');
+        renderDashboard();
       } else if (msg.type === 'updateAvailable') {
         showUpdateBanner(msg.version, msg.notes);
       }
@@ -2896,6 +2908,8 @@ window.addEventListener('load', function() {
   // Auto-update check (deferred so it doesn't block render)
   setTimeout(() => checkForUpdate(), 3000);
 
+  bindNativeAndroidBridge();
+
   // Update app badge for today on load
-  updateAppBadge(formatDateKey(new Date()));
+  updateAppBadge();
 });
