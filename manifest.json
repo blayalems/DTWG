@@ -1,7 +1,7 @@
 {
   "name": "Daily Time with God",
   "short_name": "DTWG",
-  "description": "A daily Bible reading companion with reading plans, journaling, and verse highlighting.",
+  "description": "A daily Bible reading companion with reading plans, journaling, bookmarks, prayer journal, achievements, and verse highlighting.",
   "start_url": "./index.html",
   "scope": "./",
   "id": "dtwg-pwa",

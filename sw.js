@@ -1,8 +1,8 @@
 // Service Worker for Daily Time with God (DTWG)
 importScripts('./plan.js');
 
-const SW_VERSION = '1.5.0';
-const CACHE_NAME = 'dtwg-v1.5.0';
+const SW_VERSION = '1.6.0';
+const CACHE_NAME = 'dtwg-v1.6.0';
 const UPDATE_CHECK_URL = 'https://blayalems.github.io/DTWG/version.json';
 
 let latestState = null;
@@ -12,7 +12,9 @@ const APP_SHELL = [
   './index.html',
   './styles.css',
   './plan.js',
+  './crossrefs.js',
   './app.js',
+  './extensions.js',
   './manifest.json',
   './version.json',
   './icons/icon.svg',

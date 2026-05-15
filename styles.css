@@ -1320,3 +1320,348 @@ button:focus:not(:focus-visible), input:focus:not(:focus-visible) { outline: non
     max-width: 720px; margin-left: auto; margin-right: auto;
   }
 }
+
+/* ============================================================================
+ * v1.6.0 EXTENSIONS — Bookmarks, Prayer, Achievements, Share, Cross-refs, TTS
+ * + dark-theme contrast tuning + Android status-bar fix surface.
+ * ========================================================================== */
+
+/* --- Header search button + actions row --- */
+.header-actions { display: flex; align-items: center; gap: 6px; }
+.header-icon-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 40px; height: 40px;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--md-on-surface);
+  transition: background var(--transition);
+}
+.header-icon-btn:hover, .header-icon-btn:focus-visible {
+  background: color-mix(in srgb, var(--md-primary) 14%, transparent);
+  outline: none;
+}
+.header-icon-btn .material-symbols-rounded { font-size: 22px; }
+
+/* --- History tabs: allow horizontal scroll for added tabs --- */
+.history-tabs { overflow-x: auto; scrollbar-width: none; -ms-overflow-style: none; }
+.history-tabs::-webkit-scrollbar { display: none; }
+.history-tab { flex-shrink: 0; }
+
+/* --- Verse bookmark + share buttons inside .verse-para --- */
+.verse-para { position: relative; padding-right: 56px; }
+.verse-bookmark-btn, .verse-share-btn {
+  position: absolute;
+  top: 6px;
+  width: 26px; height: 26px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--md-on-surface-variant);
+  opacity: 0;
+  transition: opacity var(--transition), background var(--transition), color var(--transition);
+}
+.verse-bookmark-btn { right: 30px; }
+.verse-share-btn    { right: 4px; }
+.verse-para:hover .verse-bookmark-btn,
+.verse-para:hover .verse-share-btn,
+.verse-para:focus-within .verse-bookmark-btn,
+.verse-para:focus-within .verse-share-btn,
+.verse-bookmark-btn.active { opacity: 1; }
+.verse-bookmark-btn.active { color: var(--md-primary); }
+.verse-bookmark-btn:hover, .verse-share-btn:hover {
+  background: color-mix(in srgb, var(--md-primary) 12%, transparent);
+  color: var(--md-primary);
+}
+.verse-bookmark-btn .material-symbols-rounded,
+.verse-share-btn .material-symbols-rounded { font-size: 18px; }
+/* Touch-only devices: always show the buttons */
+@media (hover: none) {
+  .verse-bookmark-btn, .verse-share-btn { opacity: 0.7; }
+}
+.verse-para.verse-highlight-flash {
+  animation: verseFlash 1.6s ease-out;
+}
+@keyframes verseFlash {
+  0%   { background: color-mix(in srgb, var(--md-primary) 30%, transparent); }
+  100% { background: transparent; }
+}
+.verse-para.tts-active {
+  background: color-mix(in srgb, var(--md-primary) 14%, transparent);
+  border-left: 3px solid var(--md-primary);
+  padding-left: 9px;
+}
+
+/* --- Cross-reference strip --- */
+.cr-strip {
+  margin: 16px 0 8px;
+  padding: 12px 14px;
+  border-radius: var(--radius-md);
+  background: var(--md-surface-variant);
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+}
+.cr-strip-label {
+  font-size: 12px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--md-on-surface-variant);
+  margin-right: 4px;
+}
+.cr-chip {
+  padding: 6px 12px;
+  background: var(--md-surface);
+  border: 1px solid var(--md-outline);
+  border-radius: 999px;
+  font-size: 13px;
+  color: var(--md-on-surface);
+  transition: background var(--transition), border-color var(--transition);
+}
+.cr-chip:hover, .cr-chip:focus-visible {
+  background: var(--md-primary);
+  border-color: var(--md-primary);
+  color: var(--md-on-primary);
+  outline: none;
+}
+[data-theme="dark"] .cr-strip { background: #2B2930; }
+[data-theme="dark"] .cr-chip  { background: #1C1B1F; border-color: #3D3840; }
+
+/* --- Notebook: side-by-side export buttons --- */
+.nb-export-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.nb-export-md  { background: var(--md-surface-variant); color: var(--md-on-surface); }
+
+/* --- Prayer journal --- */
+.prayer-section { margin-top: 16px; }
+.prayer-list { display: flex; flex-direction: column; gap: 6px; margin: 8px 0 12px; }
+.prayer-item {
+  display: flex; align-items: flex-start; gap: 8px;
+  padding: 10px 12px;
+  background: var(--md-surface-variant);
+  border-radius: var(--radius-md);
+  border: 1px solid transparent;
+}
+.prayer-item.answered { opacity: 0.7; }
+.prayer-item.answered .prayer-text { text-decoration: line-through; }
+.prayer-check {
+  flex-shrink: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px;
+  color: var(--md-on-surface-variant);
+}
+.prayer-item.answered .prayer-check { color: var(--md-primary); }
+.prayer-check .material-symbols-rounded { font-size: 22px; }
+.prayer-text { flex: 1; font-size: 14px; line-height: 1.5; color: var(--md-on-surface); padding-top: 4px; word-break: break-word; }
+.prayer-del {
+  flex-shrink: 0;
+  width: 26px; height: 26px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 50%;
+  color: var(--md-on-surface-variant);
+  opacity: 0.6;
+}
+.prayer-del:hover { opacity: 1; background: color-mix(in srgb, var(--md-error) 12%, transparent); color: var(--md-error); }
+.prayer-del .material-symbols-rounded { font-size: 18px; }
+.prayer-add-row { display: flex; gap: 8px; align-items: center; }
+.prayer-add-row .settings-input { flex: 1; }
+[data-theme="dark"] .prayer-item { background: #2B2930; }
+
+/* --- Achievements grid --- */
+.achievement-progress {
+  text-align: center;
+  font-size: 13px;
+  color: var(--md-on-surface-variant);
+  margin: 4px 0 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.achievement-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 10px;
+}
+.achievement-card {
+  display: flex; align-items: flex-start; gap: 12px;
+  padding: 14px;
+  border-radius: var(--radius-md);
+  background: var(--md-surface);
+  border: 1px solid var(--md-surface-variant);
+  transition: transform var(--transition), box-shadow var(--transition);
+}
+.achievement-card.unlocked {
+  border-color: var(--md-primary);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--md-primary) 35%, transparent), var(--shadow-sm);
+}
+.achievement-card.locked { opacity: 0.55; }
+.achievement-icon {
+  flex-shrink: 0;
+  width: 44px; height: 44px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--md-surface-variant);
+  color: var(--md-on-surface-variant);
+}
+.achievement-card.unlocked .achievement-icon {
+  background: color-mix(in srgb, var(--md-primary) 18%, transparent);
+  color: var(--md-primary);
+}
+.achievement-icon .material-symbols-rounded { font-size: 26px; }
+.achievement-body { flex: 1; min-width: 0; }
+.achievement-body strong { display: block; font-size: 14px; color: var(--md-on-surface); }
+.achievement-body p { font-size: 12px; color: var(--md-on-surface-variant); margin-top: 2px; line-height: 1.4; }
+.achievement-date { display: block; font-size: 11px; color: var(--md-primary); margin-top: 4px; }
+[data-theme="dark"] .achievement-card { background: #2B2930; border-color: #3D3840; }
+[data-theme="dark"] .achievement-icon { background: #1C1B1F; }
+
+/* --- Bookmark badge --- */
+.hl-badge-bookmark { background: color-mix(in srgb, var(--md-primary) 18%, transparent); color: var(--md-primary); }
+[data-theme="dark"] .hl-badge-bookmark { background: color-mix(in srgb, var(--md-primary) 32%, transparent); color: var(--md-on-surface); }
+.bookmark-item { position: relative; }
+.bookmark-remove-btn {
+  position: absolute; top: 10px; right: 10px;
+  width: 26px; height: 26px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 50%;
+  color: var(--md-on-surface-variant);
+  opacity: 0.5;
+}
+.bookmark-remove-btn:hover { opacity: 1; background: color-mix(in srgb, var(--md-error) 12%, transparent); }
+.bookmark-remove-btn .material-symbols-rounded { font-size: 16px; }
+
+/* --- Achievement toast --- */
+.app-toast.achievement-toast {
+  display: flex !important; align-items: center; gap: 12px;
+  padding: 14px 20px;
+  background: var(--md-primary);
+  color: var(--md-on-primary);
+  text-align: left;
+  max-width: 360px;
+  white-space: normal;
+  box-shadow: var(--shadow-lg);
+}
+.app-toast.achievement-toast .material-symbols-rounded { font-size: 28px; }
+.app-toast.achievement-toast strong { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; opacity: 0.85; }
+.app-toast.achievement-toast span:last-child { font-size: 15px; font-weight: 600; }
+
+/* --- Share-card overlay --- */
+.share-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.65);
+  z-index: 1000;
+  display: flex; align-items: center; justify-content: center;
+  padding: 16px;
+  backdrop-filter: blur(4px);
+}
+.share-panel {
+  position: relative;
+  background: var(--md-surface);
+  color: var(--md-on-surface);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  max-width: 540px;
+  width: 100%;
+  max-height: 92vh;
+  overflow: auto;
+  box-shadow: var(--shadow-lg);
+}
+.share-title { font-size: 18px; margin: 0 0 12px; }
+.share-panel canvas {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1 / 1;
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  margin-bottom: 14px;
+  background: #000;
+}
+.share-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.share-actions .secondary-btn { flex: 1; min-width: 120px; justify-content: center; }
+.share-close { position: absolute; top: 10px; right: 10px; }
+
+/* --- TTS audio bar tweaks --- */
+.audio-bar.tts-bar { display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; }
+.tts-controls { display: flex; gap: 6px; align-items: center; }
+.tts-controls .secondary-btn { padding: 6px 12px; }
+
+/* --- Palette section headers --- */
+.palette-section-header {
+  padding: 10px 16px 4px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--md-on-surface-variant);
+  background: var(--md-surface);
+  position: sticky; top: 0;
+  z-index: 1;
+}
+
+/* ============================================================================
+ * DARK-THEME CONTRAST POLISH
+ * The original dark palette read fine at a glance but had a few low-contrast
+ * spots: highlight overlays were too faint (alpha .22-.28 over a #2B2930
+ * surface lost the color cue), primary swatches were the original light-mode
+ * tones (insufficient on a black surface), and per-category badges occasion-
+ * ally washed out. We bump highlight alphas, brighten primary tones, and
+ * raise badge legibility floor.
+ * ========================================================================== */
+
+/* Brighter primary tones in dark mode for each preset. We override the
+ * inline-style --md-primary that JS sets on :root by targeting both [data-theme]
+ * AND the JS-bound app-color attribute. */
+[data-theme="dark"] {
+  --md-primary: #B69DF8;       /* purple tonal-90 */
+  --md-on-primary: #1A0E2E;
+}
+[data-theme="dark"][data-app-color="blue"]   { --md-primary: #A4C6FF; --md-on-primary: #0A2A4F; }
+[data-theme="dark"][data-app-color="green"]  { --md-primary: #9BD9A2; --md-on-primary: #0C2410; }
+[data-theme="dark"][data-app-color="amber"]  { --md-primary: #FFB68E; --md-on-primary: #2D1500; }
+[data-theme="dark"][data-app-color="rose"]   { --md-primary: #F4A3C0; --md-on-primary: #33001A; }
+
+/* Stronger highlight overlays in dark mode */
+[data-theme="dark"] .verse-para.hl-general   { background: rgba(182,157,248,.32); }
+[data-theme="dark"] .verse-para.hl-promise   { background: rgba(129,199,132,.34); }
+[data-theme="dark"] .verse-para.hl-command   { background: rgba(144,202,249,.34); }
+[data-theme="dark"] .verse-para.hl-warning   { background: rgba(255,171,145,.34); }
+[data-theme="dark"] .verse-para.hl-principle { background: rgba(255,224,130,.30); }
+
+[data-theme="dark"] .notebook-highlight.hl-general   { background: rgba(182,157,248,.22); }
+[data-theme="dark"] .notebook-highlight.hl-promise   { background: rgba(129,199,132,.22); }
+[data-theme="dark"] .notebook-highlight.hl-command   { background: rgba(144,202,249,.22); }
+[data-theme="dark"] .notebook-highlight.hl-warning   { background: rgba(255,171,145,.22); }
+[data-theme="dark"] .notebook-highlight.hl-principle { background: rgba(255,224,130,.20); }
+
+/* Higher-contrast badges in dark mode */
+[data-theme="dark"] .hl-badge-general   { background: rgba(182,157,248,.30); color: #E6D8FF; }
+[data-theme="dark"] .hl-badge-promise   { background: rgba(129,199,132,.30); color: #CDE7CE; }
+[data-theme="dark"] .hl-badge-command   { background: rgba(144,202,249,.30); color: #D3E5FB; }
+[data-theme="dark"] .hl-badge-warning   { background: rgba(255,171,145,.30); color: #FFD8C5; }
+[data-theme="dark"] .hl-badge-principle { background: rgba(255,224,130,.26); color: #FFEFAE; }
+
+/* Filter chips need better contrast against #1C1B1F surface */
+[data-theme="dark"] .filter-chip {
+  background: #2B2930;
+  border-color: #3D3840;
+  color: var(--md-on-surface);
+}
+[data-theme="dark"] .filter-chip.active {
+  background: var(--md-primary);
+  border-color: var(--md-primary);
+  color: var(--md-on-primary);
+}
+
+/* Verse-num color override so chapter numbers read clearly */
+[data-theme="dark"] .verse-num { color: var(--md-primary); }
+
+/* Streak chip in dark mode — primary background was too dark, reads better
+ * as a tonal pill */
+[data-theme="dark"] .streak-chip {
+  background: color-mix(in srgb, var(--md-primary) 22%, transparent);
+  color: var(--md-on-surface);
+}
+
+/* Focus ring uniform across both themes */
+*:focus-visible { outline: 2px solid var(--md-primary); outline-offset: 2px; }
+
+/* Smaller-screen header actions layout */
+@media (max-width: 380px) {
+  .header-icon-btn { width: 36px; height: 36px; }
+  .streak-chip { padding: 4px 10px; }
+}
+

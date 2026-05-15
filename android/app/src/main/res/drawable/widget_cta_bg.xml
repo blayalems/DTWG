@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  CTA pill background. Stacks a subtle highlight stripe over a vivid accent
+  fill — Material 3 Expressive emphasises layered surfaces over flat fills.
+-->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="@color/widget_cta_bg" />
+            <corners android:radius="999dp" />
+        </shape>
+    </item>
+    <item android:gravity="top">
+        <shape android:shape="rectangle">
+            <gradient
+                android:type="linear"
+                android:angle="270"
+                android:startColor="@color/widget_cta_highlight"
+                android:endColor="@android:color/transparent" />
+            <corners android:radius="999dp" />
+        </shape>
+    </item>
+</layer-list>

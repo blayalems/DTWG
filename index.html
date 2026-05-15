@@ -31,10 +31,15 @@
       </div>
     </div>
   </div>
-  <button id="header-streak" class="streak-chip" aria-label="Streak">
-    <span class="material-symbols-rounded">local_fire_department</span>
-    <span id="streak-count">0</span>
-  </button>
+  <div class="header-actions">
+    <button id="header-search-btn" class="header-icon-btn" aria-label="Search and jump" title="Search (Ctrl+K)">
+      <span class="material-symbols-rounded">search</span>
+    </button>
+    <button id="header-streak" class="streak-chip" aria-label="Streak">
+      <span class="material-symbols-rounded">local_fire_department</span>
+      <span id="streak-count">0</span>
+    </button>
+  </div>
 </header>
 
 <main id="main-content">
@@ -104,6 +109,8 @@
         placeholder="Write your personal reflection, prayer, or notes here…"
         rows="8"></textarea>
     </div>
+
+    <div id="prayer-section" class="journal-section prayer-section" aria-label="Prayer journal"></div>
   </div>
 
   <div id="page-notebook" class="page" role="main">
@@ -117,10 +124,16 @@
       </button>
     </div>
     <div id="notebook-paper" class="notebook-paper"></div>
-    <button id="nb-export-btn" class="nb-export-btn" hidden>
-      <span class="material-symbols-rounded">picture_as_pdf</span>
-      Export PDF
-    </button>
+    <div class="nb-export-row">
+      <button id="nb-export-btn" class="nb-export-btn" hidden>
+        <span class="material-symbols-rounded">picture_as_pdf</span>
+        Export PDF
+      </button>
+      <button id="nb-export-md-btn" class="nb-export-btn nb-export-md" hidden>
+        <span class="material-symbols-rounded">code</span>
+        Export Markdown
+      </button>
+    </div>
   </div>
 
   <div id="page-history" class="page" role="main">
@@ -163,6 +176,8 @@
     <div class="history-tabs">
       <button class="history-tab active" id="tab-highlights" data-tab="highlights">Highlights</button>
       <button class="history-tab" id="tab-notes" data-tab="notes">Notes</button>
+      <button class="history-tab" id="tab-bookmarks" data-tab="bookmarks">Bookmarks</button>
+      <button class="history-tab" id="tab-achievements" data-tab="achievements">Achievements</button>
     </div>
 
     <div class="filter-chips" id="filter-chips">
@@ -620,6 +635,8 @@
 </div>
 
 <script src="./plan.js" defer></script>
+<script src="./crossrefs.js" defer></script>
 <script src="./app.js" defer></script>
+<script src="./extensions.js" defer></script>
 </body>
 </html>

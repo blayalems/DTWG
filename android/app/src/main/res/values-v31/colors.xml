@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Material You dynamic widget palette (Android 12+).
+
+  The android:color/system_* tokens are extracted from the user's wallpaper
+  at runtime, so the widget automatically harmonises with the device theme.
+  We pick the tonal stops that read clearly in both light and dark home
+  screens.
+-->
+<resources>
+    <color name="widget_bg_start">@android:color/system_accent1_900</color>
+    <color name="widget_bg_end">@android:color/system_accent1_600</color>
+    <color name="widget_fg_strong">@android:color/system_accent1_50</color>
+    <color name="widget_fg_muted">@android:color/system_accent1_100</color>
+    <color name="widget_label">@android:color/system_accent2_200</color>
+    <color name="widget_pill_bg">@android:color/system_accent1_800</color>
+    <color name="widget_pill_fg">@android:color/system_accent1_100</color>
+    <color name="widget_cta_bg">@android:color/system_accent3_200</color>
+    <color name="widget_cta_fg">@android:color/system_accent3_900</color>
+    <color name="widget_cta_highlight">@android:color/system_accent3_50</color>
+    <color name="widget_ring_track">@android:color/system_accent1_800</color>
+    <color name="widget_ring_fill">@android:color/system_accent3_200</color>
+</resources>

@@ -5,4 +5,20 @@
     <color name="dtwg_gold">#FFFFB300</color>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
+
+    <!-- Widget palette (M3 Expressive defaults; overridden on API 31+ by
+         the dynamic Material You tokens in values-v31/colors.xml). -->
+    <color name="widget_bg_start">#FF1F1638</color>
+    <color name="widget_bg_end">#FF4A2D8A</color>
+    <color name="widget_fg_strong">#FFFFFFFF</color>
+    <color name="widget_fg_muted">#CCFFFFFF</color>
+    <color name="widget_label">#80FFFFFF</color>
+    <color name="widget_pill_bg">#33FFFFFF</color>
+    <color name="widget_pill_fg">#FFFFFFFF</color>
+    <color name="widget_cta_bg">#FFFFB3D9</color>
+    <color name="widget_cta_fg">#FF38003C</color>
+    <color name="widget_cta_highlight">#33FFFFFF</color>
+    <color name="widget_ring_track">#33FFFFFF</color>
+    <color name="widget_ring_fill">#FFFFB3D9</color>
 </resources>
+

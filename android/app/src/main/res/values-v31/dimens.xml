@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Android 12+ overrides: track the launcher's widget background radius so the
+  DTWG widget visually fuses with the system widget container.
+-->
+<resources>
+    <dimen name="widget_corner">@android:dimen/system_app_widget_background_radius</dimen>
+</resources>

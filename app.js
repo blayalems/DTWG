@@ -1,6 +1,6 @@
 
 /* ===== APP VERSION ===== */
-const APP_VERSION = '1.5.0';
+const APP_VERSION = '1.6.0';
 const UPDATE_CHECK_URL = 'https://blayalems.github.io/DTWG/version.json';
 
 /* ===== TOAST & CONFIRM UTILITIES ===== */

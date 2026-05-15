@@ -1,45 +1,123 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  Widget layout — Material 3 Expressive.
+
+  Two-row hero composition:
+    Row 1: small uppercase brand label  +  status pill
+    Row 2: large progress ring (drawn at runtime as a Bitmap) + done/total numeral + next-reading hint
+    Row 3: pill CTA "Open today's reading"
+
+  Surfaces and colors are driven by the widget_* color tokens defined in
+  values/colors.xml (static) and values-v31/colors.xml (Material You dynamic).
+-->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/widget_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:gravity="center_vertical"
-    android:padding="16dp"
+    android:padding="@dimen/widget_padding"
     android:background="@drawable/widget_background">
 
-    <TextView
-        android:id="@+id/widget_title"
+    <!-- Header strip: brand label + status pill ============================ -->
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:ellipsize="end"
-        android:maxLines="1"
-        android:text="@string/app_name"
-        android:textColor="@android:color/white"
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+
+        <TextView
+            android:id="@+id/widget_brand"
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="wrap_content"
+            android:text="@string/widget_brand"
+            android:textColor="@color/widget_label"
+            android:textSize="11sp"
+            android:textStyle="bold"
+            android:letterSpacing="0.16"
+            android:textAllCaps="true"
+            android:maxLines="1"
+            android:ellipsize="end" />
+
+        <TextView
+            android:id="@+id/widget_pill"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="@drawable/widget_pill"
+            android:paddingHorizontal="10dp"
+            android:paddingVertical="4dp"
+            android:textColor="@color/widget_pill_fg"
+            android:textSize="10sp"
+            android:textStyle="bold"
+            android:letterSpacing="0.10"
+            android:textAllCaps="true"
+            android:maxLines="1"
+            android:text="@string/widget_ready" />
+    </LinearLayout>
+
+    <!-- Hero: progress ring + done/total + next-reading =================== -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginTop="10dp">
+
+        <ImageView
+            android:id="@+id/widget_ring"
+            android:layout_width="@dimen/widget_ring_size"
+            android:layout_height="@dimen/widget_ring_size"
+            android:contentDescription="@string/widget_progress_desc"
+            android:importantForAccessibility="yes" />
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:layout_marginStart="14dp">
+
+            <TextView
+                android:id="@+id/widget_done_big"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/widget_done_initial"
+                android:textColor="@color/widget_fg_strong"
+                android:textSize="34sp"
+                android:fontFamily="sans-serif-black"
+                android:includeFontPadding="false"
+                android:letterSpacing="-0.03" />
+
+            <TextView
+                android:id="@+id/widget_next"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/widget_detail_idle"
+                android:textColor="@color/widget_fg_muted"
+                android:textSize="13sp"
+                android:maxLines="1"
+                android:ellipsize="end"
+                android:layout_marginTop="2dp" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- CTA pill ========================================================== -->
+    <TextView
+        android:id="@+id/widget_cta"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:background="@drawable/widget_cta_bg"
+        android:paddingHorizontal="14dp"
+        android:paddingVertical="11dp"
+        android:textColor="@color/widget_cta_fg"
         android:textSize="13sp"
-        android:textStyle="bold" />
-
-    <TextView
-        android:id="@+id/widget_status"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="6dp"
-        android:ellipsize="end"
+        android:textStyle="bold"
+        android:letterSpacing="0.02"
+        android:gravity="center"
         android:maxLines="1"
-        android:text="@string/widget_ready"
-        android:textColor="@android:color/white"
-        android:textSize="22sp"
-        android:textStyle="bold" />
-
-    <TextView
-        android:id="@+id/widget_detail"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="4dp"
         android:ellipsize="end"
-        android:maxLines="2"
-        android:text="@string/widget_detail_idle"
-        android:textColor="#DDE1EA"
-        android:textSize="12sp" />
+        android:text="@string/widget_cta_open" />
 
 </LinearLayout>

@@ -1,8 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!--
+        v1.6.0: status-bar color + icon contrast are now driven at runtime by
+        DtwgBridge.setStatusBarStyle, which the web side calls every time the
+        app theme or color changes. The static defaults below are only used
+        for the brief moment before WebView calls back.
+    -->
     <style name="Theme.DTWG" parent="Theme.AppCompat.NoActionBar">
         <item name="android:windowBackground">@color/black</item>
         <item name="android:statusBarColor">@color/black</item>
         <item name="android:navigationBarColor">@color/black</item>
+        <!-- Allow the WindowInsetsController to flip icon tint on the fly -->
+        <item name="android:windowLightStatusBar">false</item>
     </style>
 </resources>
