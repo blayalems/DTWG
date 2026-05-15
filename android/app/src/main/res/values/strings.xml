@@ -6,4 +6,12 @@
     <string name="widget_desc">DTWG reading progress widget</string>
     <string name="widget_ready">Ready to read</string>
     <string name="widget_detail_idle">Tap to open today\'s readings</string>
+    <!-- v1.6.0 widget chrome -->
+    <string name="widget_brand">Daily Time With God</string>
+    <string name="widget_progress_desc">Daily reading progress</string>
+    <string name="widget_done_initial">0/7</string>
+    <string name="widget_cta_open">Open today\'s reading</string>
+    <string name="widget_cta_complete">All done — open notebook</string>
+    <string name="widget_pill_complete">Complete</string>
+    <string name="widget_pill_reading">In progress</string>
 </resources>

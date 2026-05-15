@@ -8,6 +8,9 @@
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <!-- v1.6.0: native alarm-backed reminder; falls back to inexact if exact-alarm permission is denied -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
     <application
         android:allowBackup="false"
@@ -32,6 +35,10 @@
 
         <receiver
             android:name=".NotificationActionReceiver"
+            android:exported="false" />
+
+        <receiver
+            android:name=".ReminderAlarmReceiver"
             android:exported="false" />
 
         <receiver

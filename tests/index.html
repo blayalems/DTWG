@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DTWG Tests</title>
+  <style>
+    :root {
+      --bg: #fafafa;
+      --fg: #1c1c1e;
+      --muted: #6b6b70;
+      --pass: #2e7d32;
+      --fail: #c62828;
+      --border: #e5e5ea;
+      --accent: #6750A4;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root { --bg: #141218; --fg: #e6e1e5; --muted: #95919a; --border: #2b2930; }
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg); color: var(--fg);
+      margin: 0; padding: 24px;
+      max-width: 920px; margin-inline: auto;
+      line-height: 1.5;
+    }
+    h1 { font-size: 22px; margin: 0 0 4px; }
+    .sub { color: var(--muted); font-size: 13px; margin-bottom: 20px; }
+    #summary {
+      padding: 14px 18px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      margin-bottom: 16px;
+      font-size: 16px;
+      font-weight: 600;
+    }
+    #summary.pass { border-color: var(--pass); color: var(--pass); }
+    #summary.fail { border-color: var(--fail); color: var(--fail); }
+    .test {
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 13px;
+    }
+    .status { width: 16px; text-align: center; flex-shrink: 0; font-weight: 700; }
+    .status.pass { color: var(--pass); }
+    .status.fail { color: var(--fail); }
+    .name { flex: 1; word-break: break-word; }
+    .ms { color: var(--muted); font-size: 11px; }
+    .err {
+      white-space: pre-wrap;
+      background: rgba(198, 40, 40, 0.06);
+      border-left: 3px solid var(--fail);
+      padding: 8px 10px;
+      margin-top: 6px;
+      font-size: 12px;
+      color: var(--fail);
+      border-radius: 4px;
+    }
+    button {
+      background: var(--accent); color: white;
+      border: none; padding: 8px 16px; border-radius: 8px;
+      font-size: 14px; font-weight: 500; cursor: pointer;
+    }
+    button:hover { opacity: 0.9; }
+  </style>
+</head>
+<body>
+  <h1>DTWG test suite</h1>
+  <p class="sub">Pure JS unit tests for plan.js, crossrefs.js, and extension helpers. Open this page in any browser — no build, no server required.</p>
+
+  <div id="summary">Running…</div>
+  <div id="results"></div>
+
+  <p style="margin-top: 20px;">
+    <button onclick="location.reload()">Re-run</button>
+  </p>
+
+  <!-- Modules under test -->
+  <script src="../plan.js"></script>
+  <script src="../crossrefs.js"></script>
+
+  <!-- Test runner + suite -->
+  <script src="./test-runner.js"></script>
+  <script src="./dtwg.tests.js"></script>
+
+  <script>
+    (async function () {
+      var results = document.getElementById('results');
+      var summary = document.getElementById('summary');
+
+      var report = await DTWGTest.run(function (entry) {
+        var row = document.createElement('div');
+        row.className = 'test';
+        row.innerHTML =
+          '<span class="status ' + (entry.ok ? 'pass' : 'fail') + '">' + (entry.ok ? '✓' : '✕') + '</span>' +
+          '<div class="name"><div>' + entry.name + ' <span class="ms">' + entry.ms + 'ms</span></div></div>';
+        if (!entry.ok) {
+          var err = document.createElement('div');
+          err.className = 'err';
+          err.textContent = entry.err;
+          row.querySelector('.name').appendChild(err);
+        }
+        results.appendChild(row);
+      });
+
+      summary.classList.add(report.fail === 0 ? 'pass' : 'fail');
+      summary.textContent =
+        (report.fail === 0 ? '✓ ALL PASSED · ' : '✕ ' + report.fail + ' FAILED · ') +
+        report.pass + ' / ' + report.total + ' passed';
+
+      console.log('[DTWG tests]', report);
+    })();
+  </script>
+</body>
+</html>

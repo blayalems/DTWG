@@ -1,10 +1,26 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  v1.6.0: M3 Expressive sizing.
+
+  - 4×2 cell target on Android 12+ launchers (≈288×132dp) keeps the hero
+    ring + done/total + CTA all visible at the default size.
+  - Wider resize bounds let users stretch to 4×3 or down to 2×2.
+  - previewLayout is the real layout so the picker shows the actual widget
+    chrome rather than a flat screenshot.
+-->
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
     android:description="@string/widget_desc"
     android:initialLayout="@layout/dtwg_widget"
     android:minWidth="180dp"
-    android:minHeight="90dp"
+    android:minHeight="110dp"
+    android:targetCellWidth="4"
+    android:targetCellHeight="2"
+    android:minResizeWidth="180dp"
+    android:minResizeHeight="110dp"
+    android:maxResizeWidth="384dp"
+    android:maxResizeHeight="220dp"
     android:previewLayout="@layout/dtwg_widget"
     android:resizeMode="horizontal|vertical"
     android:updatePeriodMillis="0"
     android:widgetCategory="home_screen" />
+

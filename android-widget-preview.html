@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DTWG Widget — Material 3 Expressive Preview</title>
+<style>
+  :root {
+    --bg: #0a0612;
+    --fg: #f4eff8;
+    --muted: #968fa6;
+    --card-radius: 28px;
+
+    /* DTWG widget tokens — match values/colors.xml */
+    --w-bg-start: #1F1638;
+    --w-bg-end:   #4A2D8A;
+    --w-fg-strong: #FFFFFF;
+    --w-fg-muted: rgba(255,255,255,0.80);
+    --w-label: rgba(255,255,255,0.50);
+    --w-pill-bg: rgba(255,255,255,0.20);
+    --w-pill-fg: #FFFFFF;
+    --w-cta-bg: #FFB3D9;
+    --w-cta-fg: #38003C;
+    --w-cta-highlight: rgba(255,255,255,0.20);
+    --w-ring-track: rgba(255,255,255,0.20);
+    --w-ring-fill: #FFB3D9;
+  }
+  /* Material You-ish "blue wallpaper" preset */
+  .you-blue {
+    --w-bg-start: #002C5F;
+    --w-bg-end:   #2E5DAA;
+    --w-cta-bg: #FFD789;
+    --w-cta-fg: #3E2700;
+    --w-ring-fill: #FFD789;
+  }
+  /* Material You-ish "green wallpaper" preset */
+  .you-green {
+    --w-bg-start: #0F2A1E;
+    --w-bg-end:   #2E6A4B;
+    --w-cta-bg: #C7E3B3;
+    --w-cta-fg: #112A0A;
+    --w-ring-fill: #C7E3B3;
+  }
+  /* Sunset / amber wallpaper preset */
+  .you-amber {
+    --w-bg-start: #2D1100;
+    --w-bg-end:   #8A3C0E;
+    --w-cta-bg: #FFE2B4;
+    --w-cta-fg: #341600;
+    --w-ring-fill: #FFE2B4;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 32px 24px 80px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background:
+      radial-gradient(1200px 600px at 20% 0%, #251945 0%, transparent 60%),
+      radial-gradient(900px 500px at 90% 100%, #4a1e5e 0%, transparent 55%),
+      var(--bg);
+    color: var(--fg);
+    min-height: 100vh;
+  }
+
+  h1 { font-size: 26px; font-weight: 700; margin: 0 0 4px; letter-spacing: -0.02em; }
+  .sub { color: var(--muted); font-size: 14px; max-width: 640px; margin-bottom: 32px; line-height: 1.5; }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 24px;
+    max-width: 1080px;
+  }
+  .card {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .card-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    color: var(--muted);
+    font-weight: 600;
+  }
+
+  /* ===== Widget mock ===== */
+  /* Approximates 320×156px @ 1x density (4×2 cells). The Android widget will
+     scale relative to system density. */
+  .widget {
+    width: 100%;
+    aspect-ratio: 320 / 156;
+    background: linear-gradient(135deg, var(--w-bg-start), var(--w-bg-end));
+    border-radius: var(--card-radius);
+    padding: 16px;
+    color: var(--w-fg-strong);
+    display: flex;
+    flex-direction: column;
+    box-shadow:
+      0 22px 50px -20px rgba(0,0,0,0.6),
+      0 6px 20px -10px rgba(0,0,0,0.45);
+    overflow: hidden;
+    position: relative;
+  }
+  /* Subtle halo */
+  .widget::after {
+    content: "";
+    position: absolute;
+    top: -40%;
+    right: -10%;
+    width: 70%;
+    height: 90%;
+    background: radial-gradient(closest-side, rgba(255,255,255,0.18), transparent 70%);
+    pointer-events: none;
+  }
+
+  .w-head {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 10px;
+    z-index: 1;
+  }
+  .w-brand {
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--w-label);
+  }
+  .w-pill {
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: 0.10em;
+    text-transform: uppercase;
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: var(--w-pill-bg);
+    color: var(--w-pill-fg);
+  }
+
+  .w-hero {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-top: 10px;
+    z-index: 1;
+  }
+  .w-ring {
+    width: 72px; height: 72px;
+    flex-shrink: 0;
+    position: relative;
+  }
+  .w-ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+  .w-ring-track { stroke: var(--w-ring-track); fill: none; stroke-width: 8; }
+  .w-ring-fill  { stroke: var(--w-ring-fill);  fill: none; stroke-width: 8; stroke-linecap: round; }
+  .w-ring-center {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+  }
+  .w-ring-pct {
+    font-size: 22px;
+    font-weight: 900;
+    letter-spacing: -0.04em;
+    color: var(--w-fg-strong);
+  }
+  .w-ring-sub {
+    font-size: 8.5px;
+    font-weight: 800;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.65);
+    margin-top: 2px;
+  }
+  .w-text {
+    display: flex; flex-direction: column;
+    min-width: 0;
+    flex: 1;
+  }
+  .w-done {
+    font-family: "Inter", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    font-weight: 900;
+    font-size: 34px;
+    line-height: 1;
+    letter-spacing: -0.03em;
+    color: var(--w-fg-strong);
+  }
+  .w-next {
+    margin-top: 4px;
+    font-size: 13px;
+    color: var(--w-fg-muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .w-cta {
+    margin-top: 10px;
+    background: var(--w-cta-bg);
+    color: var(--w-cta-fg);
+    border-radius: 999px;
+    padding: 11px 14px;
+    text-align: center;
+    font-weight: 800;
+    font-size: 13px;
+    letter-spacing: 0.02em;
+    position: relative;
+    overflow: hidden;
+    z-index: 1;
+  }
+  .w-cta::before {
+    content: "";
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 50%;
+    background: linear-gradient(180deg, var(--w-cta-highlight), transparent);
+  }
+
+  /* Old widget (for the before/after pair) */
+  .widget-old {
+    width: 100%;
+    aspect-ratio: 320 / 156;
+    background: #17171B;
+    border: 1px solid rgba(255,255,255,0.2);
+    border-radius: 22px;
+    padding: 16px;
+    color: white;
+    box-shadow: 0 14px 30px -16px rgba(0,0,0,0.5);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+  .widget-old .t { font-size: 13px; font-weight: 700; opacity: 0.85; }
+  .widget-old .s { font-size: 22px; font-weight: 700; margin-top: 6px; }
+  .widget-old .d { font-size: 12px; opacity: 0.7; margin-top: 4px; }
+
+  h2 {
+    font-size: 18px;
+    font-weight: 700;
+    margin: 40px 0 16px;
+    letter-spacing: -0.01em;
+  }
+  .notes {
+    color: var(--muted);
+    font-size: 13px;
+    line-height: 1.7;
+    max-width: 720px;
+    margin-top: 8px;
+  }
+  .notes b { color: var(--fg); font-weight: 600; }
+  .notes code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    background: rgba(255,255,255,0.05);
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 12px;
+  }
+</style>
+</head>
+<body>
+
+<h1>DTWG widget — Material 3 Expressive redesign</h1>
+<p class="sub">A static HTML preview of how the v1.6.0 home-screen widget renders. On Android 12+ the gradient and accents are pulled from the user's wallpaper via Material You tokens — three of those flavours are shown below.</p>
+
+<div class="grid">
+
+  <!-- Before / After pair -->
+  <div class="card">
+    <div class="card-label">Before · v1.5.0</div>
+    <div class="widget-old">
+      <div class="t">DTWG</div>
+      <div class="s">3/7 complete</div>
+      <div class="d">Next: Genesis 4</div>
+    </div>
+    <div class="notes">Plain dark rectangle. No visual progress, no emphasis, looks like a debug build.</div>
+  </div>
+
+  <div class="card">
+    <div class="card-label">After · v1.6.0 default</div>
+    <div class="widget">
+      <div class="w-head">
+        <span class="w-brand">Daily Time With God</span>
+        <span class="w-pill">In progress</span>
+      </div>
+      <div class="w-hero">
+        <div class="w-ring">
+          <svg viewBox="0 0 80 80">
+            <circle class="w-ring-track" cx="40" cy="40" r="32" />
+            <circle class="w-ring-fill" cx="40" cy="40" r="32" stroke-dasharray="86 201" />
+          </svg>
+          <div class="w-ring-center">
+            <span class="w-ring-pct">43%</span>
+            <span class="w-ring-sub">TODAY</span>
+          </div>
+        </div>
+        <div class="w-text">
+          <span class="w-done">3/7</span>
+          <span class="w-next">Next: Genesis 4</span>
+        </div>
+      </div>
+      <div class="w-cta">Open today's reading</div>
+    </div>
+    <div class="notes">Hero progress ring, bold display numeral, expressive CTA pill.</div>
+  </div>
+
+  <div class="card">
+    <div class="card-label">Complete state</div>
+    <div class="widget">
+      <div class="w-head">
+        <span class="w-brand">Daily Time With God</span>
+        <span class="w-pill">Complete</span>
+      </div>
+      <div class="w-hero">
+        <div class="w-ring">
+          <svg viewBox="0 0 80 80">
+            <circle class="w-ring-track" cx="40" cy="40" r="32" />
+            <circle class="w-ring-fill" cx="40" cy="40" r="32" stroke-dasharray="201 201" />
+          </svg>
+          <div class="w-ring-center">
+            <span class="w-ring-pct" style="font-size: 28px">✓</span>
+            <span class="w-ring-sub">DONE</span>
+          </div>
+        </div>
+        <div class="w-text">
+          <span class="w-done">7/7</span>
+          <span class="w-next">Great is His faithfulness</span>
+        </div>
+      </div>
+      <div class="w-cta">All done — open notebook</div>
+    </div>
+    <div class="notes">Checkmark + DONE inside the ring; CTA copy adapts to invite a notebook visit.</div>
+  </div>
+
+  <div class="card">
+    <div class="card-label">Material You · blue wallpaper</div>
+    <div class="widget you-blue">
+      <div class="w-head">
+        <span class="w-brand">Daily Time With God</span>
+        <span class="w-pill">In progress</span>
+      </div>
+      <div class="w-hero">
+        <div class="w-ring">
+          <svg viewBox="0 0 80 80">
+            <circle class="w-ring-track" cx="40" cy="40" r="32" />
+            <circle class="w-ring-fill" cx="40" cy="40" r="32" stroke-dasharray="58 201" />
+          </svg>
+          <div class="w-ring-center">
+            <span class="w-ring-pct">29%</span>
+            <span class="w-ring-sub">TODAY</span>
+          </div>
+        </div>
+        <div class="w-text">
+          <span class="w-done">2/7</span>
+          <span class="w-next">Next: Exodus 18</span>
+        </div>
+      </div>
+      <div class="w-cta">Open today's reading</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-label">Material You · green wallpaper</div>
+    <div class="widget you-green">
+      <div class="w-head">
+        <span class="w-brand">Daily Time With God</span>
+        <span class="w-pill">In progress</span>
+      </div>
+      <div class="w-hero">
+        <div class="w-ring">
+          <svg viewBox="0 0 80 80">
+            <circle class="w-ring-track" cx="40" cy="40" r="32" />
+            <circle class="w-ring-fill" cx="40" cy="40" r="32" stroke-dasharray="143 201" />
+          </svg>
+          <div class="w-ring-center">
+            <span class="w-ring-pct">71%</span>
+            <span class="w-ring-sub">TODAY</span>
+          </div>
+        </div>
+        <div class="w-text">
+          <span class="w-done">5/7</span>
+          <span class="w-next">Next: Romans 12</span>
+        </div>
+      </div>
+      <div class="w-cta">Open today's reading</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-label">Material You · amber wallpaper</div>
+    <div class="widget you-amber">
+      <div class="w-head">
+        <span class="w-brand">Daily Time With God</span>
+        <span class="w-pill">Ready to read</span>
+      </div>
+      <div class="w-hero">
+        <div class="w-ring">
+          <svg viewBox="0 0 80 80">
+            <circle class="w-ring-track" cx="40" cy="40" r="32" />
+            <circle class="w-ring-fill" cx="40" cy="40" r="32" stroke-dasharray="0 201" />
+          </svg>
+          <div class="w-ring-center">
+            <span class="w-ring-pct">0%</span>
+            <span class="w-ring-sub">TODAY</span>
+          </div>
+        </div>
+        <div class="w-text">
+          <span class="w-done">0/7</span>
+          <span class="w-next">Tap to start</span>
+        </div>
+      </div>
+      <div class="w-cta">Open today's reading</div>
+    </div>
+  </div>
+
+</div>
+
+<h2>What changed</h2>
+<p class="notes">
+<b>Hero progress ring.</b> Drawn at runtime via <code>Canvas.drawArc</code> in <code>DtwgWidgetProvider</code> and pushed through <code>RemoteViews.setImageViewBitmap</code> — anti-aliased, rounded end-caps, and a dynamic centre readout (<code>%</code> / <code>✓</code>).<br>
+<b>Bold display numeral.</b> <code>3/7</code> in 34sp <code>sans-serif-black</code> with negative tracking, paired with a 13sp "Next: …" muted label.<br>
+<b>Status pill.</b> Rounded chip that adapts copy (Ready · In progress · Complete) and surfaces the day's phase at a glance.<br>
+<b>CTA pill.</b> Vivid accent button with an internal highlight gradient. Tap target is the entire widget.<br>
+<b>Material You.</b> Android 12+ pulls all colors from <code>system_accent1_*</code> and <code>system_accent3_*</code> tokens, so the widget rehues with the wallpaper. Pre-12 devices fall back to a hand-tuned purple gradient.<br>
+<b>System chrome alignment.</b> Outer radius tracks <code>@android:dimen/system_app_widget_background_radius</code> on API 31+ so the DTWG widget visually fuses with the launcher's widget container.<br>
+<b>Larger target size.</b> 4×2 cells (≈288×132 dp) on Android 12+ — picker preview is the actual layout, not a generic screenshot.
+</p>
+
+</body>
+</html>

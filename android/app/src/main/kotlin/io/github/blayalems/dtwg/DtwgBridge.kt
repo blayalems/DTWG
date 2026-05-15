@@ -93,6 +93,65 @@ class DtwgBridge(private val context: Context) {
     @JavascriptInterface
     fun isNative(): Boolean = true
 
+    /* ----- v1.6.0: native status-bar / system-bar sync ----- */
+    @JavascriptInterface
+    fun setStatusBarStyle(hex: String, isDark: Boolean) {
+        val activity = context as? Activity ?: return
+        val parsed = runCatching { Color.parseColor(hex.trim()) }.getOrElse { return }
+        Handler(Looper.getMainLooper()).post {
+            val window = activity.window ?: return@post
+            window.statusBarColor = parsed
+            window.navigationBarColor = parsed
+            val decor = window.decorView
+            // light status bar = dark icons (used in our light theme)
+            val controller = androidx.core.view.WindowInsetsControllerCompat(window, decor)
+            controller.isAppearanceLightStatusBars = !isDark
+            controller.isAppearanceLightNavigationBars = !isDark
+        }
+    }
+
+    @JavascriptInterface
+    fun openAppNotificationSettings() {
+        val activity = context as? Activity ?: return
+        Handler(Looper.getMainLooper()).post {
+            try {
+                val intent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    Intent(android.provider.Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
+                        putExtra(android.provider.Settings.EXTRA_APP_PACKAGE, activity.packageName)
+                    }
+                } else {
+                    Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                        data = android.net.Uri.fromParts("package", activity.packageName, null)
+                    }
+                }
+                activity.startActivity(intent)
+            } catch (e: Exception) {
+                showToast("Couldn't open notification settings: ${e.message}", long = true)
+            }
+        }
+    }
+
+    /* ----- v1.6.0: native alarm-backed reminder ----- */
+    @JavascriptInterface
+    fun scheduleNativeReminder(timeHHMM: String): Boolean {
+        val parts = timeHHMM.split(":")
+        if (parts.size != 2) return false
+        val hour = parts[0].toIntOrNull() ?: return false
+        val minute = parts[1].toIntOrNull() ?: return false
+        return try {
+            ReminderAlarmReceiver.schedule(context, hour, minute)
+            true
+        } catch (e: Exception) {
+            Log.w(TAG, "scheduleNativeReminder failed", e)
+            false
+        }
+    }
+
+    @JavascriptInterface
+    fun cancelNativeReminder(): Boolean {
+        return try { ReminderAlarmReceiver.cancel(context); true } catch (e: Exception) { false }
+    }
+
     @JavascriptInterface
     fun saveBackupFile(filename: String, json: String) {
         try {
