@@ -1,5 +1,5 @@
 {
-  "version": "1.6.0",
+  "version": "1.6.1",
   "build": "20260516",
-  "notes": "Bookmarks · Achievements · Prayer journal · Cross-references · Share cards · Markdown export · TTS fallback · Native Android status bar + alarm reminder · Dark-theme contrast polish"
+  "notes": "Bug fixes: History tab switching (bookmarks/achievements now render correctly), 'General' highlights now appear in Notebook and PDF export, streak persisted after notification-complete action, search index invalidated on new chapter fetch, TTS stops on modal close, cloud sync pull now re-applies theme and colors"
 }
