@@ -1127,6 +1127,13 @@ a { color: var(--md-primary); text-decoration: none; }
 [data-theme="dark"] .hl-badge-warning  { background: rgba(230, 81,  0,.35); color: #FFB89A; }
 [data-theme="dark"] .hl-badge-principle{ background: rgba(245,127, 23,.30); color: #FFE57F; }
 
+[data-theme="dark"] .hl-circle-general  { background: rgba(103, 80,164,.40); color: #D0BEFF; }
+[data-theme="dark"] .hl-circle-promise  { background: rgba( 46,125, 50,.40); color: #A8D5A9; }
+[data-theme="dark"] .hl-circle-command  { background: rgba( 21,101,192,.40); color: #A8C8F8; }
+[data-theme="dark"] .hl-circle-warning  { background: rgba(230, 81,  0,.40); color: #FFB89A; }
+[data-theme="dark"] .hl-circle-principle{ background: rgba(245,127, 23,.35); color: #FFE57F; }
+[data-theme="dark"] .hl-eraser          { background: rgba(255,255,255,.10); color: #CAC4D0; border-color: #49454E; }
+
 /* ===== DESKTOP ===== */
 @media (min-width: 900px) {
   #page-dashboard .plan-container {
