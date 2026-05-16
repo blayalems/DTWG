@@ -64,7 +64,7 @@
       var payload = {
         _dtwg: true,
         exportedAt: new Date().toISOString(),
-        appVersion: (typeof APP_VERSION !== 'undefined' ? APP_VERSION : '1.6.0'),
+        appVersion: (typeof APP_VERSION !== 'undefined' ? APP_VERSION : '1.6.1'),
         data: {}
       };
       fields.forEach(function (f) {
@@ -927,7 +927,7 @@
     var origSet = window.setHistoryTab;
     if (origSet) {
       window.setHistoryTab = function patchedSetHistoryTab(tab) {
-        window.historyTab = tab;
+        historyTab = tab;
         ['highlights','notes','bookmarks','achievements'].forEach(function (t) {
           var btn = document.getElementById('tab-' + t);
           if (btn) btn.classList.toggle('active', t === tab);

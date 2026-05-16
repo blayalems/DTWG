@@ -1,6 +1,6 @@
 
 /* ===== APP VERSION ===== */
-const APP_VERSION = '1.6.0';
+const APP_VERSION = '1.6.1';
 const UPDATE_CHECK_URL = 'https://blayalems.github.io/DTWG/version.json';
 
 /* ===== TOAST & CONFIRM UTILITIES ===== */
@@ -1037,6 +1037,7 @@ function renderNotebook() {
 
   // 3–6. HIGHLIGHT CATEGORIES (read-only)
   const categories = [
+    { type: 'general',   label: 'General \u2728' },
     { type: 'promise',   label: 'Promises \uD83E\uDD1D' },
     { type: 'command',   label: 'Commands \uD83D\uDCCB' },
     { type: 'warning',   label: 'Warnings \u26A0\uFE0F' },
@@ -1144,6 +1145,7 @@ function exportNotebookPDF() {
   const readings = getReadingPlan(dateKey);
 
   const categories = [
+    { type: 'general',   label: 'General \u2728' },
     { type: 'promise',   label: 'Promises \uD83E\uDD1D' },
     { type: 'command',   label: 'Commands \uD83D\uDCCB' },
     { type: 'warning',   label: 'Warnings \u26A0\uFE0F' },
@@ -1351,6 +1353,8 @@ async function fetchChapter(book, chapter, translation) {
     data = await BibleProviders[provider].fetch(book, chapter, translation);
     data.provider = provider;
     await setCachedBible(key, data);
+    searchIndex = null;
+    setCachedStore('sync', 'dtwg_search_index', null).catch(() => {});
   }
   return data;
 }
@@ -1853,6 +1857,7 @@ function handleNativeNotificationAction(action, dateOverride) {
     state.completed[dateKey] = getReadingPlan(dateKey).map(readingCompletionKey);
     saveState();
     recomputeAllStats();
+    saveState();
     checkMilestoneNotifications(prevStreak);
     updateStatDisplays();
     viewedDate = dateKey;
@@ -2118,6 +2123,10 @@ async function syncNow() {
       const pulled = await decryptState(remote, passphrase);
       state = { ...state, ...pulled, cloudSync: { ...state.cloudSync, ...pulled.cloudSync, lastSyncTs: remoteTs } };
       saveState();
+      applyTheme(state.settings.themeMode || 'system');
+      applyAppColor(state.settings.appColor, state.settings.customColor);
+      applyHighlightColors(state.settings.hlColors);
+      updateHeaderName();
       renderDashboard();
       updateStatDisplays();
       showToast('Cloud backup restored');
@@ -2144,6 +2153,7 @@ function closeModal() {
   modal.setAttribute('hidden', '');
 
   commitReadingTime();
+  if (typeof stopTts === 'function') stopTts();
 
   document.getElementById('modal-verses').innerHTML = '';
   const audioBar = document.getElementById('audio-bar');
@@ -2880,6 +2890,7 @@ window.addEventListener('load', function() {
         state.completed[dateKey] = getReadingPlan(dateKey).map(readingCompletionKey);
         saveState();
         recomputeAllStats();
+        saveState();
         renderDashboard();
         updateStatDisplays();
         updateAppBadge();
