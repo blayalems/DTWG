@@ -174,11 +174,8 @@ class DtwgWidgetProvider : AppWidgetProvider() {
                     letterSpacing = -0.02f
                 }
             }
-            val baseline = cy - (textPaint.ascent() + textPaint.descent()) / 2
-            canvas.drawText(label, cx, baseline, textPaint)
 
-            // Tiny "DAILY" / "DONE" subtitle baked under the % readout for the
-            // Expressive look — only when the ring's big enough to read it.
+            // Centre label + subtitle together as a group so neither floats off-axis.
             if (size >= (60 * density)) {
                 val sub = if (isComplete) "DONE" else "TODAY"
                 val subPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -190,7 +187,15 @@ class DtwgWidgetProvider : AppWidgetProvider() {
                         letterSpacing = 0.18f
                     }
                 }
-                canvas.drawText(sub, cx, baseline + 14f * density, subPaint)
+                val gap      = 3f * density
+                val labelH   = textPaint.descent() - textPaint.ascent()
+                val subH     = subPaint.descent()  - subPaint.ascent()
+                val groupTop = cy - (labelH + gap + subH) / 2f
+                canvas.drawText(label, cx, groupTop - textPaint.ascent(), textPaint)
+                canvas.drawText(sub,   cx, groupTop + labelH + gap - subPaint.ascent(), subPaint)
+            } else {
+                val baseline = cy - (textPaint.ascent() + textPaint.descent()) / 2
+                canvas.drawText(label, cx, baseline, textPaint)
             }
 
             // Avoid lint about unused 'Rect' import — kept for future bbox needs.

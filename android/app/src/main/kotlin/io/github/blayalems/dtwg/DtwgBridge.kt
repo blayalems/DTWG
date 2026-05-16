@@ -16,6 +16,7 @@ import android.os.Environment
 import android.os.Handler
 import android.os.Looper
 import android.provider.MediaStore
+import android.speech.tts.TextToSpeech
 import android.util.Base64
 import android.util.Log
 import android.view.HapticFeedbackConstants
@@ -28,6 +29,7 @@ import androidx.core.content.FileProvider
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
+import java.util.Locale
 
 class DtwgBridge(private val context: Context) {
 
@@ -150,6 +152,39 @@ class DtwgBridge(private val context: Context) {
     @JavascriptInterface
     fun cancelNativeReminder(): Boolean {
         return try { ReminderAlarmReceiver.cancel(context); true } catch (e: Exception) { false }
+    }
+
+    /* ----- v1.6.2: native TTS for Android WebView (no speechSynthesis API) ----- */
+    private var tts: TextToSpeech? = null
+    private var ttsPendingText: String? = null
+    private var ttsPendingRate: Float = 1.0f
+
+    @JavascriptInterface
+    fun speakText(text: String, rate: Float) {
+        val safeText = text.take(50_000)
+        val safeRate = rate.coerceIn(0.5f, 2.0f)
+        val existing = tts
+        if (existing != null) {
+            existing.setSpeechRate(safeRate)
+            existing.speak(safeText, TextToSpeech.QUEUE_FLUSH, null, "dtwg_tts")
+        } else {
+            ttsPendingText = safeText
+            ttsPendingRate = safeRate
+            tts = TextToSpeech(context) { status ->
+                if (status == TextToSpeech.SUCCESS) {
+                    tts?.language = Locale.US
+                    tts?.setSpeechRate(ttsPendingRate)
+                    ttsPendingText?.let { t ->
+                        tts?.speak(t, TextToSpeech.QUEUE_FLUSH, null, "dtwg_tts")
+                    }
+                }
+            }
+        }
+    }
+
+    @JavascriptInterface
+    fun stopNativeTts() {
+        tts?.stop()
     }
 
     @JavascriptInterface

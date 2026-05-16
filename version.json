@@ -1,5 +1,5 @@
 {
-  "version": "1.6.1",
+  "version": "1.6.2",
   "build": "20260516",
-  "notes": "Bug fixes: History tab switching (bookmarks/achievements now render correctly), 'General' highlights now appear in Notebook and PDF export, streak persisted after notification-complete action, search index invalidated on new chapter fetch, TTS stops on modal close, cloud sync pull now re-applies theme and colors"
+  "notes": "Visual fixes: highlight button contrast in dark mode, Android native TTS (no more 'not supported' toast), widget checkmark + DONE label centered correctly"
 }

@@ -64,7 +64,7 @@
       var payload = {
         _dtwg: true,
         exportedAt: new Date().toISOString(),
-        appVersion: (typeof APP_VERSION !== 'undefined' ? APP_VERSION : '1.6.1'),
+        appVersion: (typeof APP_VERSION !== 'undefined' ? APP_VERSION : '1.6.2'),
         data: {}
       };
       fields.forEach(function (f) {
@@ -507,11 +507,23 @@
 
   /* ---------- 8. TTS FALLBACK ---------- */
 
-  var ttsState = { utterance: null, queue: [], idx: 0, playing: false, intentionalCancel: false };
+  var ttsState = { utterance: null, queue: [], idx: 0, playing: false, intentionalCancel: false, nativeMode: false };
 
   function speakCurrentChapter() {
-    if (!('speechSynthesis' in window)) { showToast('TTS not supported in this browser'); return; }
     if (!currentChapterData || !currentChapterData.verses) { showToast('No chapter loaded'); return; }
+    var bridge = window.DTWGAndroid;
+    if (bridge && typeof bridge.speakText === 'function') {
+      // Route through native Android TTS — WebView doesn't expose speechSynthesis
+      var fullText = currentChapterData.verses.map(function (v) { return v.text; }).join(' ');
+      ttsState.playing = true;
+      ttsState.nativeMode = true;
+      ttsState.queue = currentChapterData.verses.map(function (v) { return v.text; });
+      bridge.speakText(fullText, state.settings.ttsRate || 1.0);
+      renderTtsBar();
+      return;
+    }
+    if (!('speechSynthesis' in window)) { showToast('TTS not supported in this browser'); return; }
+    ttsState.nativeMode = false;
     speechSynthesis.cancel();
     ttsState.queue = currentChapterData.verses.map(function (v) { return v.text; });
     ttsState.idx = 0;
@@ -557,6 +569,11 @@
 
   function stopTts() {
     ttsState.playing = false;
+    ttsState.nativeMode = false;
+    var bridge = window.DTWGAndroid;
+    if (bridge && typeof bridge.stopNativeTts === 'function') {
+      try { bridge.stopNativeTts(); } catch (e) {}
+    }
     if ('speechSynthesis' in window) speechSynthesis.cancel();
     document.querySelectorAll('.verse-para.tts-active').forEach(function (n) { n.classList.remove('tts-active'); });
     var bar = document.getElementById('audio-bar');
@@ -574,13 +591,16 @@
     meta.textContent = 'TTS · ' + (currentModalReading ? currentModalReading.book + ' ' + currentModalReading.chapter : '');
     var controls = document.createElement('div');
     controls.className = 'tts-controls';
-    var pause = document.createElement('button');
-    pause.className = 'secondary-btn';
-    pause.textContent = 'Pause';
-    pause.onclick = function () {
-      if (speechSynthesis.paused) { speechSynthesis.resume(); pause.textContent = 'Pause'; }
-      else { speechSynthesis.pause(); pause.textContent = 'Resume'; }
-    };
+    if (!ttsState.nativeMode) {
+      var pause = document.createElement('button');
+      pause.className = 'secondary-btn';
+      pause.textContent = 'Pause';
+      pause.onclick = function () {
+        if (speechSynthesis.paused) { speechSynthesis.resume(); pause.textContent = 'Pause'; }
+        else { speechSynthesis.pause(); pause.textContent = 'Resume'; }
+      };
+      controls.appendChild(pause);
+    }
     var stop = document.createElement('button');
     stop.className = 'secondary-btn';
     stop.textContent = 'Stop';
@@ -597,16 +617,22 @@
     rate.onchange = function () {
       state.settings.ttsRate = parseFloat(rate.value);
       saveState();
-      // restart from current verse for new rate
       if (ttsState.playing) {
-        ttsState.intentionalCancel = true;
-        speechSynthesis.cancel();
-        ttsState.intentionalCancel = false;
-        speakNext();
+        if (ttsState.nativeMode) {
+          var bridge = window.DTWGAndroid;
+          if (bridge && typeof bridge.speakText === 'function') {
+            var fullText = ttsState.queue.join(' ');
+            bridge.speakText(fullText, state.settings.ttsRate);
+          }
+        } else {
+          ttsState.intentionalCancel = true;
+          speechSynthesis.cancel();
+          ttsState.intentionalCancel = false;
+          speakNext();
+        }
       }
     };
     controls.appendChild(rate);
-    controls.appendChild(pause);
     controls.appendChild(stop);
     bar.appendChild(meta);
     bar.appendChild(controls);
