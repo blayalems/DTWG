@@ -2636,8 +2636,21 @@ function initSettings() {
       document.querySelectorAll('#color-palette .color-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       state.settings.appColor = btn.dataset.color;
-      if (btn.dataset.color === 'system') state.settings.customColor = readNativeAccentColor() || state.settings.customColor;
-      applyAppColor(btn.dataset.color, state.settings.customColor);           // Always apply the color
+
+      let appliedMode = btn.dataset.color;
+      let appliedColor = null;
+      if (btn.dataset.color === 'system') {
+        state.settings.systemAccent = readNativeAccentColor() || null;
+        if (state.settings.systemAccent) {
+          appliedColor = state.settings.systemAccent;
+        } else {
+          appliedMode = 'purple';
+        }
+      } else if (btn.dataset.color === 'custom') {
+        appliedColor = state.settings.customColor;
+      }
+
+      applyAppColor(appliedMode, appliedColor);           // Always apply the color
       if (state.settings.hlSync) syncHlWithTheme(); // Also sync highlights if enabled
       saveState();
     });
