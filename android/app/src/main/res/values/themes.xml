@@ -13,4 +13,10 @@
         <!-- Allow the WindowInsetsController to flip icon tint on the fly -->
         <item name="android:windowLightStatusBar">false</item>
     </style>
+
+    <style name="Theme.DTWG.Starting" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/black</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_bible</item>
+        <item name="postSplashScreenTheme">@style/Theme.DTWG</item>
+    </style>
 </resources>

@@ -18,8 +18,14 @@
   --hl-warning: #FFCCBC;
   --hl-principle: #FFF9C4;
 
-  --safe-top: env(safe-area-inset-top, 0px);
-  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --native-safe-top: 0px;
+  --native-safe-right: 0px;
+  --native-safe-bottom: 0px;
+  --native-safe-left: 0px;
+  --safe-top: max(env(safe-area-inset-top, 0px), var(--native-safe-top));
+  --safe-right: max(env(safe-area-inset-right, 0px), var(--native-safe-right));
+  --safe-bottom: max(env(safe-area-inset-bottom, 0px), var(--native-safe-bottom));
+  --safe-left: max(env(safe-area-inset-left, 0px), var(--native-safe-left));
 
   --header-height: 64px;
   --nav-height: 64px;
@@ -43,6 +49,18 @@
   --shadow-sm: 0 1px 3px rgba(0,0,0,.30);
   --shadow-md: 0 4px 12px rgba(0,0,0,.30);
   --shadow-lg: 0 8px 32px rgba(0,0,0,.45);
+}
+
+[data-theme="oled"] {
+  --md-surface: #000000;
+  --md-background: #000000;
+  --md-surface-variant: #141414;
+  --md-on-surface: #F2F2F2;
+  --md-on-surface-variant: #C9C9C9;
+  --md-outline: #777777;
+  --shadow-sm: none;
+  --shadow-md: 0 4px 12px rgba(0,0,0,.50);
+  --shadow-lg: 0 8px 32px rgba(0,0,0,.65);
 }
 
 /* ===== RESET & BASE ===== */
@@ -72,7 +90,7 @@ a { color: var(--md-primary); text-decoration: none; }
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: calc(var(--safe-top) + 12px) 16px 12px;
+  padding: calc(var(--safe-top) + 12px) calc(var(--safe-right) + 16px) 12px calc(var(--safe-left) + 16px);
   min-height: var(--header-height);
   background: var(--md-surface);
   border-bottom: 1px solid var(--md-surface-variant);
@@ -115,7 +133,7 @@ a { color: var(--md-primary); text-decoration: none; }
   position: fixed;
   top: calc(var(--safe-top) + var(--header-height));
   bottom: calc(var(--safe-bottom) + var(--nav-height));
-  left: 0; right: 0;
+  left: var(--safe-left); right: var(--safe-right);
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
@@ -129,7 +147,7 @@ a { color: var(--md-primary); text-decoration: none; }
   display: flex;
   align-items: stretch;
   height: calc(var(--safe-bottom) + var(--nav-height));
-  padding-bottom: var(--safe-bottom);
+  padding: 0 var(--safe-right) var(--safe-bottom) var(--safe-left);
   background: var(--md-surface);
   border-top: 1px solid var(--md-surface-variant);
   box-shadow: 0 -1px 4px rgba(0,0,0,.08);
@@ -718,6 +736,8 @@ a { color: var(--md-primary); text-decoration: none; }
 
 .custom-color-btn { background: conic-gradient(from 0deg, #f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00); }
 .custom-color-btn .material-symbols-rounded { font-size: 14px; color: white; text-shadow: 0 1px 2px rgba(0,0,0,.6); }
+.system-color-btn { background: linear-gradient(135deg, #6750A4, #1565C0 45%, #2E7D32); }
+.system-color-btn .material-symbols-rounded { font-size: 14px; color: white; text-shadow: 0 1px 2px rgba(0,0,0,.6); }
 
 /* HL buttons */
 .hl-btn { width: 30px; height: 30px; border-radius: 8px; border: 2px solid var(--md-outline); cursor: pointer; transition: transform var(--transition), box-shadow var(--transition); }
@@ -1109,23 +1129,49 @@ a { color: var(--md-primary); text-decoration: none; }
 [data-theme="dark"] .history-item    { background: #2B2930; border-color: #3D3840; }
 [data-theme="dark"] .onboarding-content { background: #2B2930; }
 
+[data-theme="oled"] .plan-card       { background: #090909; border-color: #242424; }
+[data-theme="oled"] .settings-card   { background: #090909; border-color: #242424; }
+[data-theme="oled"] .stat-card       { background: #090909; border-color: #242424; }
+[data-theme="oled"] .calendar-section{ background: #090909; border-color: #242424; }
+[data-theme="oled"] .journal-section { background: #090909; border-color: #242424; }
+[data-theme="oled"] .notebook-paper  { background: #090909; border-color: #242424; }
+[data-theme="oled"] .modal-content   { background: #090909; }
+[data-theme="oled"] .hl-menu         { background: #090909; border-color: #242424; }
+[data-theme="oled"] .history-item    { background: #090909; border-color: #242424; }
+[data-theme="oled"] .onboarding-content { background: #090909; }
+
 [data-theme="dark"] .verse-para.hl-general   { background: rgba(103, 80,164,.28); }
 [data-theme="dark"] .verse-para.hl-promise   { background: rgba( 46,125, 50,.28); }
 [data-theme="dark"] .verse-para.hl-command   { background: rgba( 21,101,192,.28); }
 [data-theme="dark"] .verse-para.hl-warning   { background: rgba(230, 81,  0,.28); }
 [data-theme="dark"] .verse-para.hl-principle { background: rgba(245,127, 23,.22); }
+[data-theme="oled"] .verse-para.hl-general   { background: rgba(103, 80,164,.32); }
+[data-theme="oled"] .verse-para.hl-promise   { background: rgba( 46,125, 50,.32); }
+[data-theme="oled"] .verse-para.hl-command   { background: rgba( 21,101,192,.32); }
+[data-theme="oled"] .verse-para.hl-warning   { background: rgba(230, 81,  0,.32); }
+[data-theme="oled"] .verse-para.hl-principle { background: rgba(245,127, 23,.26); }
 
 [data-theme="dark"] .notebook-highlight.hl-general   { background: rgba(103, 80,164,.20); }
 [data-theme="dark"] .notebook-highlight.hl-promise   { background: rgba( 46,125, 50,.20); }
 [data-theme="dark"] .notebook-highlight.hl-command   { background: rgba( 21,101,192,.20); }
 [data-theme="dark"] .notebook-highlight.hl-warning   { background: rgba(230, 81,  0,.20); }
 [data-theme="dark"] .notebook-highlight.hl-principle { background: rgba(245,127, 23,.16); }
+[data-theme="oled"] .notebook-highlight.hl-general   { background: rgba(103, 80,164,.24); }
+[data-theme="oled"] .notebook-highlight.hl-promise   { background: rgba( 46,125, 50,.24); }
+[data-theme="oled"] .notebook-highlight.hl-command   { background: rgba( 21,101,192,.24); }
+[data-theme="oled"] .notebook-highlight.hl-warning   { background: rgba(230, 81,  0,.24); }
+[data-theme="oled"] .notebook-highlight.hl-principle { background: rgba(245,127, 23,.18); }
 
 [data-theme="dark"] .hl-badge-general  { background: rgba(103, 80,164,.35); color: #D0BEFF; }
 [data-theme="dark"] .hl-badge-promise  { background: rgba( 46,125, 50,.35); color: #A8D5A9; }
 [data-theme="dark"] .hl-badge-command  { background: rgba( 21,101,192,.35); color: #A8C8F8; }
 [data-theme="dark"] .hl-badge-warning  { background: rgba(230, 81,  0,.35); color: #FFB89A; }
 [data-theme="dark"] .hl-badge-principle{ background: rgba(245,127, 23,.30); color: #FFE57F; }
+[data-theme="oled"] .hl-badge-general  { background: rgba(103, 80,164,.38); color: #D0BEFF; }
+[data-theme="oled"] .hl-badge-promise  { background: rgba( 46,125, 50,.38); color: #A8D5A9; }
+[data-theme="oled"] .hl-badge-command  { background: rgba( 21,101,192,.38); color: #A8C8F8; }
+[data-theme="oled"] .hl-badge-warning  { background: rgba(230, 81,  0,.38); color: #FFB89A; }
+[data-theme="oled"] .hl-badge-principle{ background: rgba(245,127, 23,.34); color: #FFE57F; }
 
 [data-theme="dark"] .hl-circle-general  { background: rgba(103, 80,164,.40); color: #D0BEFF; }
 [data-theme="dark"] .hl-circle-promise  { background: rgba( 46,125, 50,.40); color: #A8D5A9; }

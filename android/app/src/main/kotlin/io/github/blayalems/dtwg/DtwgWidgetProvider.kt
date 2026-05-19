@@ -12,6 +12,9 @@ import android.graphics.Paint
 import android.graphics.Rect
 import android.graphics.Typeface
 import android.os.Build
+import android.os.Bundle
+import android.util.TypedValue
+import android.view.View
 import android.widget.RemoteViews
 import androidx.core.content.ContextCompat
 import org.json.JSONObject
@@ -36,8 +39,17 @@ class DtwgWidgetProvider : AppWidgetProvider() {
     override fun onUpdate(context: Context, manager: AppWidgetManager, appWidgetIds: IntArray) {
         val snap = loadSnap(context)
         appWidgetIds.forEach { id ->
-            manager.updateAppWidget(id, views(context, snap))
+            manager.updateAppWidget(id, views(context, snap, manager.getAppWidgetOptions(id)))
         }
+    }
+
+    override fun onAppWidgetOptionsChanged(
+        context: Context,
+        manager: AppWidgetManager,
+        appWidgetId: Int,
+        newOptions: Bundle,
+    ) {
+        manager.updateAppWidget(appWidgetId, views(context, loadSnap(context), newOptions))
     }
 
     companion object {
@@ -54,11 +66,12 @@ class DtwgWidgetProvider : AppWidgetProvider() {
             val manager = context.getSystemService(AppWidgetManager::class.java) ?: return
             val ids = manager.getAppWidgetIds(ComponentName(context, DtwgWidgetProvider::class.java))
             if (ids.isEmpty()) return
-            val remoteViews = views(context, snap)
-            ids.forEach { id -> manager.updateAppWidget(id, remoteViews) }
+            ids.forEach { id ->
+                manager.updateAppWidget(id, views(context, snap, manager.getAppWidgetOptions(id)))
+            }
         }
 
-        private fun views(context: Context, snap: JSONObject?): RemoteViews {
+        private fun views(context: Context, snap: JSONObject?, options: Bundle? = null): RemoteViews {
             val phase = snap?.optString("phase", "idle") ?: "idle"
             val done = snap?.optInt("done", 0) ?: 0
             val total = snap?.optInt("total", 0) ?: 0
@@ -80,6 +93,10 @@ class DtwgWidgetProvider : AppWidgetProvider() {
             }
             val cta = if (isComplete) context.getString(R.string.widget_cta_complete)
                       else context.getString(R.string.widget_cta_open)
+            val minWidth = options?.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 0) ?: 0
+            val minHeight = options?.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 0) ?: 0
+            val compact = (minWidth in 1..219) || (minHeight in 1..129)
+            val ringSizeDp = if (compact) 56 else 72
 
             val openIntent = PendingIntent.getActivity(
                 context, 0,
@@ -94,7 +111,13 @@ class DtwgWidgetProvider : AppWidgetProvider() {
                 setTextViewText(R.id.widget_done_big, "$done/${max(total, 0)}")
                 setTextViewText(R.id.widget_next, detail.ifBlank { context.getString(R.string.widget_detail_idle) })
                 setTextViewText(R.id.widget_cta, cta)
-                setImageViewBitmap(R.id.widget_ring, drawProgressRing(context, done, total, isComplete))
+                setImageViewBitmap(R.id.widget_ring, drawProgressRing(context, done, total, isComplete, ringSizeDp))
+                if (compact) {
+                    setTextViewTextSize(R.id.widget_done_big, TypedValue.COMPLEX_UNIT_SP, 26f)
+                    setTextViewTextSize(R.id.widget_next, TypedValue.COMPLEX_UNIT_SP, 11f)
+                    setTextViewTextSize(R.id.widget_cta, TypedValue.COMPLEX_UNIT_SP, 11f)
+                    setViewVisibility(R.id.widget_cta, if (minHeight in 1..118) View.GONE else View.VISIBLE)
+                }
                 setOnClickPendingIntent(R.id.widget_root, openIntent)
                 setOnClickPendingIntent(R.id.widget_cta, openIntent)
             }
@@ -115,9 +138,9 @@ class DtwgWidgetProvider : AppWidgetProvider() {
             done: Int,
             total: Int,
             isComplete: Boolean,
+            sizeDp: Int,
         ): Bitmap {
             val density = context.resources.displayMetrics.density
-            val sizeDp = 72
             val size = (sizeDp * density).toInt().coerceAtLeast(96)
             val bmp = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
             val canvas = Canvas(bmp)
@@ -173,6 +196,9 @@ class DtwgWidgetProvider : AppWidgetProvider() {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
                     letterSpacing = -0.02f
                 }
+            }
+            while (textPaint.textSize > 14f * density && textPaint.measureText(label) > radius * 1.45f) {
+                textPaint.textSize *= 0.9f
             }
 
             // Centre label + subtitle together as a group so neither floats off-axis.

@@ -1,5 +1,5 @@
 {
-  "version": "1.6.2",
-  "build": "20260516",
-  "notes": "Visual fixes: highlight button contrast in dark mode, Android native TTS (no more 'not supported' toast), widget checkmark + DONE label centered correctly"
+  "version": "1.6.3",
+  "build": "20260519",
+  "notes": "Android wrapper hardening: lazy notification permission, safe exact-alarm fallback, edge-to-edge insets, native back routing, TTS queue, keep-awake reader, OLED theme, and Material You accent bridge"
 }
