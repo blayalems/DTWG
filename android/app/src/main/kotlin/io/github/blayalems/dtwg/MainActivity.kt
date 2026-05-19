@@ -76,6 +76,11 @@ class MainActivity : AppCompatActivity() {
                 builtInZoomControls              = false
                 displayZoomControls              = false
                 setSupportZoom(false)
+                // Prevent the system from auto-darkening web content; the PWA
+                // manages its own dark/oled theme via CSS data-theme attributes.
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    isAlgorithmicDarkeningAllowed = false
+                }
             }
             wv.isVerticalScrollBarEnabled   = false
             wv.isHorizontalScrollBarEnabled = false
@@ -95,7 +100,7 @@ class MainActivity : AppCompatActivity() {
                     left = (bars.left / density).roundToInt(),
                 )
                 pushNativeInsets()
-                insets
+                WindowInsetsCompat.CONSUMED
             }
             setContentView(wv)
             ViewCompat.requestApplyInsets(wv)
@@ -195,11 +200,13 @@ class MainActivity : AppCompatActivity() {
 
         override fun onPageFinished(view: WebView, url: String) {
             super.onPageFinished(view, url)
+            val isSystemDark = (resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) == android.content.res.Configuration.UI_MODE_NIGHT_YES
             view.evaluateJavascript("""
                 (function(){
                     if(window.__dtwgNativeHooked)return;
                     window.__dtwgNativeHooked=true;
                     window.DTWG_IS_NATIVE=true;
+                    window.DTWG_SYSTEM_IS_DARK=$isSystemDark;
                     window.__dtwgPendingNativeActions=window.__dtwgPendingNativeActions||[];
                     window.__dtwgDispatchNativeAction=function(a){
                         if(!a)return;

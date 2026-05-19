@@ -1122,7 +1122,7 @@
   function syncSystemBars() {
     try {
       var root = document.documentElement;
-      var isDark = root.getAttribute('data-theme') === 'dark';
+      var isDark = root.getAttribute('data-theme') === 'dark' || root.getAttribute('data-theme') === 'oled';
       var surface = getComputedStyle(root).getPropertyValue('--md-surface').trim() || (isDark ? '#1C1B1F' : '#FFFBFE');
       // Update the meta theme color to match the SURFACE (header bg) rather
       // than the primary swatch. This is what fixes the white-status-bar bug
@@ -1191,7 +1191,13 @@
 
     // System color scheme listener — keep status bar in sync
     if (window.matchMedia) {
-      window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', syncSystemBars);
+      window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function() {
+        if (state && state.settings && (state.settings.themeMode === 'system' || !state.settings.themeMode)) {
+          applyTheme('system');
+        } else {
+          syncSystemBars();
+        }
+      });
     }
     // Listen for our own state-change pings (other tabs)
     window.addEventListener('storage', function (e) { if (e.key === 'dtwg_state') setTimeout(syncSystemBars, 50); });
