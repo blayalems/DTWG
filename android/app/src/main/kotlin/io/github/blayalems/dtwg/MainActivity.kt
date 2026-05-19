@@ -78,6 +78,12 @@ class MainActivity : AppCompatActivity() {
                 setSupportZoom(false)
                 // Prevent the system from auto-darkening web content; the PWA
                 // manages its own dark/oled theme via CSS data-theme attributes.
+                // API 29-32: deprecated setForceDark (no androidx.webkit dep needed)
+                if (Build.VERSION.SDK_INT in 29..32) {
+                    @Suppress("DEPRECATION")
+                    setForceDark(android.webkit.WebSettings.FORCE_DARK_OFF)
+                }
+                // API 33+: replacement API
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                     isAlgorithmicDarkeningAllowed = false
                 }

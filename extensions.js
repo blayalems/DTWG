@@ -1193,6 +1193,9 @@
     if (window.matchMedia) {
       window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function() {
         if (state && state.settings && (state.settings.themeMode === 'system' || !state.settings.themeMode)) {
+          // Clear the value injected at page-load so applyTheme falls back to
+          // the live matchMedia result, which correctly reflects the new OS state.
+          window.DTWG_SYSTEM_IS_DARK = undefined;
           applyTheme('system');
         } else {
           syncSystemBars();

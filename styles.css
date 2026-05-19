@@ -1162,22 +1162,22 @@ a { color: var(--md-primary); text-decoration: none; }
 [data-theme="oled"] .notebook-highlight.hl-warning   { background: rgba(255, 112, 67, 0.30); }
 [data-theme="oled"] .notebook-highlight.hl-principle { background: rgba(255, 202, 40, 0.24); }
 
-[data-theme="dark"] .hl-badge-general  { background: rgba(103, 80,164,.35); color: #D0BEFF; }
-[data-theme="dark"] .hl-badge-promise  { background: rgba( 46,125, 50,.35); color: #A8D5A9; }
-[data-theme="dark"] .hl-badge-command  { background: rgba( 21,101,192,.35); color: #A8C8F8; }
-[data-theme="dark"] .hl-badge-warning  { background: rgba(230, 81,  0,.35); color: #FFB89A; }
-[data-theme="dark"] .hl-badge-principle{ background: rgba(245,127, 23,.30); color: #FFE57F; }
-[data-theme="oled"] .hl-badge-general  { background: rgba(103, 80,164,.38); color: #D0BEFF; }
-[data-theme="oled"] .hl-badge-promise  { background: rgba( 46,125, 50,.38); color: #A8D5A9; }
-[data-theme="oled"] .hl-badge-command  { background: rgba( 21,101,192,.38); color: #A8C8F8; }
-[data-theme="oled"] .hl-badge-warning  { background: rgba(230, 81,  0,.38); color: #FFB89A; }
-[data-theme="oled"] .hl-badge-principle{ background: rgba(245,127, 23,.34); color: #FFE57F; }
+[data-theme="dark"] .hl-badge-general  { background: rgba(162, 126, 255, 0.38); color: #D0BEFF; }
+[data-theme="dark"] .hl-badge-promise  { background: rgba( 76, 175,  80, 0.36); color: #A8D5A9; }
+[data-theme="dark"] .hl-badge-command  { background: rgba( 33, 150, 243, 0.36); color: #A8C8F8; }
+[data-theme="dark"] .hl-badge-warning  { background: rgba(255, 112,  67, 0.36); color: #FFB89A; }
+[data-theme="dark"] .hl-badge-principle{ background: rgba(255, 202,  40, 0.30); color: #FFE57F; }
+[data-theme="oled"] .hl-badge-general  { background: rgba(162, 126, 255, 0.44); color: #D0BEFF; }
+[data-theme="oled"] .hl-badge-promise  { background: rgba( 76, 175,  80, 0.42); color: #A8D5A9; }
+[data-theme="oled"] .hl-badge-command  { background: rgba( 33, 150, 243, 0.42); color: #A8C8F8; }
+[data-theme="oled"] .hl-badge-warning  { background: rgba(255, 112,  67, 0.42); color: #FFB89A; }
+[data-theme="oled"] .hl-badge-principle{ background: rgba(255, 202,  40, 0.36); color: #FFE57F; }
 
-[data-theme="dark"] .hl-circle-general  { background: rgba(103, 80,164,.40); color: #D0BEFF; }
-[data-theme="dark"] .hl-circle-promise  { background: rgba( 46,125, 50,.40); color: #A8D5A9; }
-[data-theme="dark"] .hl-circle-command  { background: rgba( 21,101,192,.40); color: #A8C8F8; }
-[data-theme="dark"] .hl-circle-warning  { background: rgba(230, 81,  0,.40); color: #FFB89A; }
-[data-theme="dark"] .hl-circle-principle{ background: rgba(245,127, 23,.35); color: #FFE57F; }
+[data-theme="dark"] .hl-circle-general  { background: rgba(162, 126, 255, 0.44); color: #D0BEFF; }
+[data-theme="dark"] .hl-circle-promise  { background: rgba( 76, 175,  80, 0.42); color: #A8D5A9; }
+[data-theme="dark"] .hl-circle-command  { background: rgba( 33, 150, 243, 0.42); color: #A8C8F8; }
+[data-theme="dark"] .hl-circle-warning  { background: rgba(255, 112,  67, 0.42); color: #FFB89A; }
+[data-theme="dark"] .hl-circle-principle{ background: rgba(255, 202,  40, 0.36); color: #FFE57F; }
 [data-theme="dark"] .hl-eraser          { background: rgba(255,255,255,.10); color: #CAC4D0; border-color: #49454E; }
 
 /* ===== DESKTOP ===== */
