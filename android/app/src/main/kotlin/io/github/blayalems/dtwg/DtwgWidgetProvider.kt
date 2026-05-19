@@ -141,7 +141,11 @@ class DtwgWidgetProvider : AppWidgetProvider() {
             sizeDp: Int,
         ): Bitmap {
             val density = context.resources.displayMetrics.density
-            val size = (sizeDp * density).toInt().coerceAtLeast(96)
+            val size = TypedValue.applyDimension(
+                TypedValue.COMPLEX_UNIT_DIP,
+                sizeDp.toFloat(),
+                context.resources.displayMetrics,
+            ).toInt().coerceAtLeast(1)
             val bmp = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
             val canvas = Canvas(bmp)
             val cx = size / 2f
