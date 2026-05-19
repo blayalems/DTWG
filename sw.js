@@ -1,8 +1,8 @@
 // Service Worker for Daily Time with God (DTWG)
 importScripts('./plan.js');
 
-const SW_VERSION = '1.6.2';
-const CACHE_NAME = 'dtwg-v1.6.2';
+const SW_VERSION = '1.6.3';
+const CACHE_NAME = 'dtwg-v1.6.3';
 const UPDATE_CHECK_URL = 'https://blayalems.github.io/DTWG/version.json';
 
 let latestState = null;
@@ -158,6 +158,15 @@ function scheduleReminder(time) {
   );
 }
 
+async function showNotificationSafe(title, options) {
+  if (typeof Notification !== 'undefined' && Notification.permission !== 'granted') return;
+  try {
+    await self.registration.showNotification(title, options);
+  } catch (err) {
+    console.warn('[SW] notification skipped:', err);
+  }
+}
+
 async function showDaily() {
   const plan = computeTodayPlan();
   const actions = [
@@ -168,7 +177,7 @@ async function showDaily() {
   if (latestState?.notifications?.inlineReply === true) {
     actions.push({ action: 'reply', title: 'Reflect', type: 'text', placeholder: 'Today...' });
   }
-  await self.registration.showNotification('Daily Time with God', {
+  await showNotificationSafe('Daily Time with God', {
     body: plan.map(r => `• ${r.book} ${r.chapter}`).join('\n'),
     tag: 'dtwg-daily',
     renotify: true,
@@ -198,7 +207,7 @@ async function showLiveReading({ dateKey, done, total, readings }) {
     ? `${bar} Complete!\nAll ${total} readings done. Great is His faithfulness!`
     : `${bar} ${pct}%\n${done}/${total} complete${nextUp ? ' · ' + nextUp : ''}`;
 
-  await self.registration.showNotification('Daily Time with God', {
+  await showNotificationSafe('Daily Time with God', {
     body,
     tag: 'dtwg-live-reading',     // same tag = silent replace (live update)
     renotify: isComplete,          // only buzz on completion
@@ -215,7 +224,7 @@ async function showLiveReading({ dateKey, done, total, readings }) {
 }
 
 async function showMilestone(n) {
-  await self.registration.showNotification(`${n}-day streak! 🔥`, {
+  await showNotificationSafe(`${n}-day streak! 🔥`, {
     body: `You've built a ${n}-day daily reading habit. Keep going!`,
     tag: `dtwg-milestone-${n}`,
     renotify: true,

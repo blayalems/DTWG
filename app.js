@@ -1,6 +1,6 @@
 
 /* ===== APP VERSION ===== */
-const APP_VERSION = '1.6.2';
+const APP_VERSION = '1.6.3';
 const UPDATE_CHECK_URL = 'https://blayalems.github.io/DTWG/version.json';
 
 /* ===== TOAST & CONFIRM UTILITIES ===== */
@@ -51,13 +51,52 @@ const DEFAULT_HL_COLORS = {
 /* ===== THEME & COLOR SYSTEM ===== */
 const SURFACE_VARS = ['--md-surface','--md-background','--md-surface-variant','--md-on-surface','--md-on-surface-variant','--md-outline'];
 
+function nativeBridge() {
+  return window.DTWGAndroid || null;
+}
+
+function isDarkSurfaceTheme() {
+  const theme = document.documentElement.getAttribute('data-theme');
+  return theme === 'dark' || theme === 'oled';
+}
+
+function readNativeAccentColor() {
+  const bridge = nativeBridge();
+  if (!bridge || typeof bridge.getSystemAccentColor !== 'function') return null;
+  try {
+    const hex = String(bridge.getSystemAccentColor() || '').trim();
+    return /^#[0-9a-f]{6}$/i.test(hex) ? hex : null;
+  } catch {
+    return null;
+  }
+}
+
+function syncNativeSystemBars() {
+  const bridge = nativeBridge();
+  if (!bridge || typeof bridge.setStatusBarStyle !== 'function') return;
+  const rootStyle = getComputedStyle(document.documentElement);
+  const barColor = rootStyle.getPropertyValue('--md-surface').trim()
+    || rootStyle.getPropertyValue('--md-primary').trim()
+    || '#6750A4';
+  try { bridge.setStatusBarStyle(barColor, isDarkSurfaceTheme()); } catch {}
+}
+
+window.__dtwgSetNativeInsets = function(top, right, bottom, left) {
+  const root = document.documentElement;
+  const px = value => `${Math.max(0, Number(value) || 0)}px`;
+  root.style.setProperty('--native-safe-top', px(top));
+  root.style.setProperty('--native-safe-right', px(right));
+  root.style.setProperty('--native-safe-bottom', px(bottom));
+  root.style.setProperty('--native-safe-left', px(left));
+};
+
 function setAppColor(colorName) {
   const preset = COLOR_PRESETS[colorName] || COLOR_PRESETS.purple;
   const root = document.documentElement;
   root.style.setProperty('--md-primary', preset.primary);
   root.style.setProperty('--md-on-primary', preset.onPrimary);
   root.style.setProperty('--md-secondary', preset.secondary);
-  if (document.documentElement.getAttribute('data-theme') !== 'dark') {
+  if (!isDarkSurfaceTheme()) {
     root.style.setProperty('--md-surface', preset.surface);
     root.style.setProperty('--md-background', preset.background);
     root.style.setProperty('--md-surface-variant', preset.surfaceVariant);
@@ -66,23 +105,28 @@ function setAppColor(colorName) {
     root.style.setProperty('--md-outline', preset.outline);
   }
   document.getElementById('meta-theme-color').content = preset.primary;
+  syncNativeSystemBars();
 }
 
 function applyTheme(mode) {
   const root = document.documentElement;
   let isDark;
-  if (mode === 'dark') { isDark = true; }
+  if (mode === 'oled') { isDark = true; }
+  else if (mode === 'dark') { isDark = true; }
   else if (mode === 'light') { isDark = false; }
   else { isDark = window.matchMedia('(prefers-color-scheme: dark)').matches; }
-  root.setAttribute('data-theme', isDark ? 'dark' : 'light');
+  root.setAttribute('data-theme', mode === 'oled' ? 'oled' : (isDark ? 'dark' : 'light'));
 
   if (isDark) {
-    // Remove inline surface styles so [data-theme="dark"] CSS rules can take effect
+    // Remove inline surface styles so dark/oled CSS rules can take effect
     SURFACE_VARS.forEach(p => root.style.removeProperty(p));
+    if (mode === 'oled') document.getElementById('meta-theme-color').content = '#000000';
   } else {
     // Re-apply the light color preset so surface vars are restored
     const colorName = (state && state.settings) ? (state.settings.appColor || 'purple') : 'purple';
-    if (colorName !== 'custom') {
+    if (colorName === 'system') {
+      applyAppColor('system');
+    } else if (colorName !== 'custom') {
       setAppColor(colorName);
     } else if (state && state.settings && state.settings.customColor) {
       root.style.setProperty('--md-primary', state.settings.customColor);
@@ -97,10 +141,18 @@ function applyTheme(mode) {
       root.style.setProperty('--md-outline', base.outline);
     }
   }
+  syncNativeSystemBars();
 }
 
 function applyAppColor(colorName, customHex) {
-  if (colorName === 'custom' && customHex) {
+  if (colorName === 'system') {
+    const accent = readNativeAccentColor() || customHex || COLOR_PRESETS.purple.primary;
+    const root = document.documentElement;
+    root.style.setProperty('--md-primary', accent);
+    root.style.setProperty('--md-on-primary', '#FFFFFF');
+    root.style.setProperty('--md-secondary', COLOR_PRESETS.purple.secondary);
+    document.getElementById('meta-theme-color').content = accent;
+  } else if (colorName === 'custom' && customHex) {
     const root = document.documentElement;
     root.style.setProperty('--md-primary', customHex);
     root.style.setProperty('--md-on-primary', '#FFFFFF');
@@ -108,6 +160,7 @@ function applyAppColor(colorName, customHex) {
   } else {
     setAppColor(colorName || 'purple');
   }
+  syncNativeSystemBars();
 }
 
 function applyHighlightColors(colors) {
@@ -191,6 +244,12 @@ function playConfettiSound() {
 }
 
 function doHaptic(pattern = [10]) {
+  const bridge = nativeBridge();
+  if (bridge && typeof bridge.haptic === 'function') {
+    try {
+      if (bridge.haptic(JSON.stringify(pattern))) return;
+    } catch {}
+  }
   if (navigator.vibrate) navigator.vibrate(pattern);
 }
 
@@ -709,7 +768,104 @@ function changeDate(delta) {
   renderDashboard();
 }
 
-function switchPage(pageName) {
+const ROUTED_PAGES = new Set(['dashboard', 'notebook', 'history', 'settings']);
+let activePage = 'dashboard';
+let routeHistoryReady = false;
+let webWakeLock = null;
+
+function isBibleModalOpen() {
+  const modal = document.getElementById('bible-modal');
+  return !!modal && !modal.hasAttribute('hidden');
+}
+
+function bibleModalRouteState() {
+  if (!isBibleModalOpen() || !currentModalReading) return null;
+  return {
+    book: currentModalReading.book,
+    chapter: currentModalReading.chapter,
+    idx: currentModalIdx
+  };
+}
+
+function routeState(overrides = {}) {
+  return {
+    dtwg: true,
+    page: overrides.page || activePage || 'dashboard',
+    bibleModal: Object.prototype.hasOwnProperty.call(overrides, 'bibleModal')
+      ? overrides.bibleModal
+      : bibleModalRouteState()
+  };
+}
+
+function replaceRouteState(overrides = {}) {
+  if (!history.replaceState) return;
+  history.replaceState(routeState(overrides), '', location.href);
+}
+
+function pushRouteState(overrides = {}) {
+  if (!routeHistoryReady || !history.pushState) return;
+  history.pushState(routeState(overrides), '', location.href);
+}
+
+function setupRouteHistory() {
+  if (!history.replaceState || routeHistoryReady) return;
+  const active = document.querySelector('.page.active')?.id?.replace('page-', '');
+  if (ROUTED_PAGES.has(active)) activePage = active;
+  replaceRouteState({ bibleModal: null });
+  window.addEventListener('popstate', event => {
+    const next = event.state;
+    if (!next || next.dtwg !== true) {
+      if (isBibleModalOpen()) closeModal({ updateHistory: false });
+      return;
+    }
+    if (ROUTED_PAGES.has(next.page)) switchPage(next.page, { pushHistory: false });
+    if (next.bibleModal) {
+      openBibleModal(next.bibleModal.book, next.bibleModal.chapter, next.bibleModal.idx, { pushHistory: false });
+    } else if (isBibleModalOpen()) {
+      closeModal({ updateHistory: false });
+    }
+  });
+  routeHistoryReady = true;
+}
+
+function closeTopLayerForNativeBack() {
+  const palette = document.getElementById('command-palette');
+  if (palette && !palette.hasAttribute('hidden')) { closePalette(); return true; }
+  const drawer = document.getElementById('side-drawer');
+  if (drawer && !drawer.hasAttribute('hidden')) { closeSideDrawer(); return true; }
+  if (isBibleModalOpen()) { closeModal(); return true; }
+  if (activePage !== 'dashboard') {
+    if (history.state?.dtwg) history.back();
+    else switchPage('dashboard', { pushHistory: false });
+    return true;
+  }
+  return false;
+}
+
+window.__dtwgHandleNativeBack = closeTopLayerForNativeBack;
+
+async function setReadingKeepAwake(enabled) {
+  const bridge = nativeBridge();
+  if (bridge && typeof bridge.setKeepScreenOn === 'function') {
+    try { bridge.setKeepScreenOn(!!enabled); } catch {}
+  }
+  try {
+    if (!('wakeLock' in navigator)) return;
+    if (enabled) {
+      if (!webWakeLock) {
+        webWakeLock = await navigator.wakeLock.request('screen');
+        webWakeLock.addEventListener('release', () => { webWakeLock = null; });
+      }
+    } else if (webWakeLock) {
+      await webWakeLock.release();
+      webWakeLock = null;
+    }
+  } catch {}
+}
+
+function switchPage(pageName, options = {}) {
+  if (!ROUTED_PAGES.has(pageName)) return;
+  activePage = pageName;
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.getElementById(`page-${pageName}`).classList.add('active');
   document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
@@ -724,6 +880,7 @@ function switchPage(pageName) {
   } else if (pageName === 'dashboard') {
     renderDashboard();
   }
+  if (options.pushHistory !== false) pushRouteState({ page: pageName, bibleModal: null });
 }
 
 /* ===== CALENDAR ===== */
@@ -1359,7 +1516,8 @@ async function fetchChapter(book, chapter, translation) {
   return data;
 }
 
-async function openBibleModal(book, chapter, idx) {
+async function openBibleModal(book, chapter, idx, options = {}) {
+  const wasOpen = isBibleModalOpen();
   if (currentReadingStartTime && currentModalReading &&
       (currentModalReading.book !== book || currentModalReading.chapter !== chapter || currentModalIdx !== idx)) {
     commitReadingTime();
@@ -1371,6 +1529,12 @@ async function openBibleModal(book, chapter, idx) {
 
   const modal = document.getElementById('bible-modal');
   modal.removeAttribute('hidden');
+  setReadingKeepAwake(true);
+  if (options.pushHistory !== false) {
+    const modalState = { book, chapter, idx };
+    if (wasOpen || history.state?.bibleModal) replaceRouteState({ bibleModal: modalState });
+    else pushRouteState({ bibleModal: modalState });
+  }
 
   document.getElementById('modal-title').textContent = `${book} ${chapter} (${(state.settings.translation || 'web').toUpperCase()})`;
   document.getElementById('modal-loading').style.display = 'flex';
@@ -1785,18 +1949,67 @@ function postToSW(message) {
   navigator.serviceWorker.controller.postMessage(message);
 }
 
-async function scheduleReminderIfEnabled() {
-  if (!state.settings.reminder || !('Notification' in window)) return;
-  if (Notification.permission !== 'granted') {
-    const perm = await Notification.requestPermission();
-    if (perm !== 'granted') return;
+function notificationPermissionLabel() {
+  const web = 'Notification' in window ? Notification.permission : 'unsupported';
+  const bridge = nativeBridge();
+  let native = '';
+  if (bridge && typeof bridge.getNotificationPermissionState === 'function') {
+    try { native = `; native: ${bridge.getNotificationPermissionState()}`; } catch {}
   }
+  return `${web}${native}`;
+}
+
+function updateNotificationSupportText() {
+  const support = document.getElementById('notification-support');
+  if (!support) return;
+  support.textContent = `Notifications: ${notificationPermissionLabel()}; inline reply: ${('Notification' in window && 'actions' in Notification.prototype) ? 'fallback capable' : 'fallback only'}.`;
+}
+
+async function ensureNotificationPermission({ prompt = false } = {}) {
+  const bridge = nativeBridge();
+  let nativeGranted = false;
+  if (bridge && typeof bridge.getNotificationPermissionState === 'function') {
+    try { nativeGranted = bridge.getNotificationPermissionState() === 'granted'; } catch {}
+  }
+  if (!nativeGranted && prompt && bridge && typeof bridge.requestNotificationPermission === 'function') {
+    try { nativeGranted = bridge.requestNotificationPermission() === true; } catch {}
+  }
+
+  let webGranted = !('Notification' in window) || Notification.permission === 'granted';
+  if ('Notification' in window && Notification.permission === 'default' && prompt) {
+    try { webGranted = await Notification.requestPermission() === 'granted'; } catch {}
+  }
+  updateNotificationSupportText();
+  return webGranted || nativeGranted;
+}
+
+function scheduleNativeReminderIfAvailable() {
+  const bridge = nativeBridge();
+  if (!bridge || typeof bridge.scheduleNativeReminder !== 'function') return false;
+  try { return bridge.scheduleNativeReminder(state.settings.reminderTime || '07:00') === true; } catch { return false; }
+}
+
+function cancelNativeReminderIfAvailable() {
+  const bridge = nativeBridge();
+  if (!bridge || typeof bridge.cancelNativeReminder !== 'function') return;
+  try { bridge.cancelNativeReminder(); } catch {}
+}
+
+async function scheduleReminderIfEnabled(options = {}) {
+  if (!state.settings.reminder) {
+    cancelNativeReminderIfAvailable();
+    return true;
+  }
+  const hasPermission = await ensureNotificationPermission({ prompt: options.prompt === true });
+  const nativeScheduled = scheduleNativeReminderIfAvailable();
+  if (!hasPermission && !nativeScheduled) return false;
   const reg = await navigator.serviceWorker?.ready;
-  if (!reg) return;
+  if (!reg) return nativeScheduled || hasPermission;
   try {
     if ('periodicSync' in reg) await reg.periodicSync.register('dtwg-daily', { minInterval: 12 * 60 * 60 * 1000 });
   } catch {}
   postToSW({ type: 'scheduleReminder', time: state.settings.reminderTime, state });
+  return true;
 }
 
 function notifyProgress(dateKey) {
@@ -2148,9 +2361,14 @@ async function syncNow() {
   showToast('Cloud backup updated');
 }
 
-function closeModal() {
+function closeModal(options = {}) {
+  if (options.updateHistory !== false && history.state?.dtwg && history.state?.bibleModal) {
+    history.back();
+    return;
+  }
   const modal = document.getElementById('bible-modal');
   modal.setAttribute('hidden', '');
+  setReadingKeepAwake(false);
 
   commitReadingTime();
   if (typeof stopTts === 'function') stopTts();
@@ -2159,6 +2377,9 @@ function closeModal() {
   const audioBar = document.getElementById('audio-bar');
   if (audioBar) { audioBar.hidden = true; audioBar.innerHTML = ''; }
   document.querySelectorAll('.hl-menu').forEach(m => m.remove());
+  currentModalReading = null;
+  currentModalIdx = -1;
+  if (options.updateHistory !== false) replaceRouteState({ bibleModal: null });
 }
 
 function commitReadingTime() {
@@ -2415,7 +2636,21 @@ function initSettings() {
       document.querySelectorAll('#color-palette .color-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       state.settings.appColor = btn.dataset.color;
-      applyAppColor(btn.dataset.color);           // Always apply the color
+
+      let appliedMode = btn.dataset.color;
+      let appliedColor = null;
+      if (btn.dataset.color === 'system') {
+        state.settings.systemAccent = readNativeAccentColor() || null;
+        if (state.settings.systemAccent) {
+          appliedColor = state.settings.systemAccent;
+        } else {
+          appliedMode = 'purple';
+        }
+      } else if (btn.dataset.color === 'custom') {
+        appliedColor = state.settings.customColor;
+      }
+
+      applyAppColor(appliedMode, appliedColor);           // Always apply the color
       if (state.settings.hlSync) syncHlWithTheme(); // Also sync highlights if enabled
       saveState();
     });
@@ -2522,18 +2757,29 @@ function initSettings() {
   if (reminderTimeRow) reminderTimeRow.style.display = state.settings.reminder ? 'flex' : 'none';
   if (reminderTimeInput) reminderTimeInput.value = state.settings.reminderTime || '07:00';
 
-  reminderToggle.addEventListener('change', () => {
+  reminderToggle.addEventListener('change', async () => {
     state.settings.reminder = reminderToggle.checked;
     if (reminderTimeRow) reminderTimeRow.style.display = reminderToggle.checked ? 'flex' : 'none';
     saveState();
-    if (reminderToggle.checked) scheduleReminderIfEnabled();
+    if (reminderToggle.checked) {
+      const scheduled = await scheduleReminderIfEnabled({ prompt: true });
+      if (!scheduled) {
+        state.settings.reminder = false;
+        reminderToggle.checked = false;
+        if (reminderTimeRow) reminderTimeRow.style.display = 'none';
+        saveState();
+        showToast('Notifications are disabled for DTWG');
+      }
+    } else {
+      cancelNativeReminderIfAvailable();
+    }
   });
 
   if (reminderTimeInput) {
     reminderTimeInput.addEventListener('change', () => {
       state.settings.reminderTime = reminderTimeInput.value;
       saveState();
-      scheduleReminderIfEnabled();
+      scheduleReminderIfEnabled({ prompt: true });
     });
   }
 
@@ -2546,10 +2792,15 @@ function initSettings() {
     const el = document.getElementById(id);
     if (!el) return;
     el.checked = state.notifications[key] !== false;
-    el.addEventListener('change', () => { state.notifications[key] = el.checked; saveState(); });
+    el.addEventListener('change', () => {
+      state.notifications[key] = el.checked;
+      saveState();
+      if (el.checked && (key === 'streak' || key === 'perChapter')) {
+        ensureNotificationPermission({ prompt: true });
+      }
+    });
   });
-  const support = document.getElementById('notification-support');
-  if (support) support.textContent = `Notifications: ${'Notification' in window ? Notification.permission : 'unsupported'}; inline reply: ${('Notification' in window && 'actions' in Notification.prototype) ? 'fallback capable' : 'fallback only'}.`;
+  updateNotificationSupportText();
   document.getElementById('calendar-ics-btn')?.addEventListener('click', () => shareIcs());
 
   const audioAutoplay = document.getElementById('audio-autoplay-toggle');
@@ -2712,6 +2963,14 @@ document.addEventListener('keydown', e => {
   }
 });
 
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') {
+    if (isBibleModalOpen()) setReadingKeepAwake(true);
+    updateNotificationSupportText();
+  }
+  if (document.visibilityState === 'hidden') setReadingKeepAwake(false);
+});
+
 window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
   if (state.settings.themeMode === 'system') applyTheme('system');
 });
@@ -2727,6 +2986,7 @@ window.addEventListener('load', function() {
   applyFontSize(state.settings.fontSize || 16);
 
   renderDashboard();
+  setupRouteHistory();
   initSettings();
   updateStatDisplays();
 

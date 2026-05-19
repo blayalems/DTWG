@@ -16,12 +16,15 @@ import android.os.Environment
 import android.os.Handler
 import android.os.Looper
 import android.provider.MediaStore
+import android.provider.Settings
 import android.speech.tts.TextToSpeech
 import android.util.Base64
 import android.util.Log
 import android.view.HapticFeedbackConstants
+import android.view.WindowManager
 import android.webkit.JavascriptInterface
 import android.widget.Toast
+import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
@@ -29,6 +32,7 @@ import androidx.core.content.FileProvider
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
+import java.util.ArrayDeque
 import java.util.Locale
 
 class DtwgBridge(private val context: Context) {
@@ -102,14 +106,73 @@ class DtwgBridge(private val context: Context) {
         val parsed = runCatching { Color.parseColor(hex.trim()) }.getOrElse { return }
         Handler(Looper.getMainLooper()).post {
             val window = activity.window ?: return@post
-            window.statusBarColor = parsed
-            window.navigationBarColor = parsed
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
+                window.statusBarColor = Color.TRANSPARENT
+                window.navigationBarColor = Color.TRANSPARENT
+            } else {
+                window.statusBarColor = parsed
+                window.navigationBarColor = parsed
+            }
             val decor = window.decorView
             // light status bar = dark icons (used in our light theme)
             val controller = androidx.core.view.WindowInsetsControllerCompat(window, decor)
             controller.isAppearanceLightStatusBars = !isDark
             controller.isAppearanceLightNavigationBars = !isDark
         }
+    }
+
+    @JavascriptInterface
+    fun getSystemAccentColor(): String {
+        val color = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            ContextCompat.getColor(context, android.R.color.system_accent1_500)
+        } else {
+            DTWG_PURPLE
+        }
+        return String.format("#%06X", 0xFFFFFF and color)
+    }
+
+    @JavascriptInterface
+    fun setKeepScreenOn(enabled: Boolean): Boolean {
+        val activity = context as? Activity ?: return false
+        Handler(Looper.getMainLooper()).post {
+            if (enabled) {
+                activity.window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            } else {
+                activity.window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            }
+        }
+        return true
+    }
+
+    @JavascriptInterface
+    fun getNotificationPermissionState(): String {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return "granted"
+        return if (
+            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS)
+            == PackageManager.PERMISSION_GRANTED
+        ) {
+            "granted"
+        } else {
+            "prompt"
+        }
+    }
+
+    @JavascriptInterface
+    fun requestNotificationPermission(): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return true
+        if (
+            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS)
+            == PackageManager.PERMISSION_GRANTED
+        ) return true
+        val activity = context as? Activity ?: return false
+        Handler(Looper.getMainLooper()).post {
+            ActivityCompat.requestPermissions(
+                activity,
+                arrayOf(Manifest.permission.POST_NOTIFICATIONS),
+                0xD710,
+            )
+        }
+        return false
     }
 
     @JavascriptInterface
@@ -150,32 +213,67 @@ class DtwgBridge(private val context: Context) {
     }
 
     @JavascriptInterface
+    fun canScheduleExactAlarms(): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return true
+        val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as? AlarmManager ?: return false
+        return alarmManager.canScheduleExactAlarms()
+    }
+
+    @JavascriptInterface
+    fun openExactAlarmSettings(): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return true
+        val activity = context as? Activity ?: return false
+        Handler(Looper.getMainLooper()).post {
+            try {
+                activity.startActivity(
+                    Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM).apply {
+                        data = android.net.Uri.parse("package:${activity.packageName}")
+                    }
+                )
+            } catch (e: Exception) {
+                showToast("Couldn't open exact alarm settings: ${e.message}", long = true)
+            }
+        }
+        return true
+    }
+
+    @JavascriptInterface
     fun cancelNativeReminder(): Boolean {
         return try { ReminderAlarmReceiver.cancel(context); true } catch (e: Exception) { false }
     }
 
     /* ----- v1.6.2: native TTS for Android WebView (no speechSynthesis API) ----- */
+    private data class TtsRequest(val text: String, val rate: Float)
+
     private var tts: TextToSpeech? = null
-    private var ttsPendingText: String? = null
-    private var ttsPendingRate: Float = 1.0f
+    private var ttsReady = false
+    private var ttsInitializing = false
+    private var ttsUtteranceSeq = 0
+    private val ttsQueue = ArrayDeque<TtsRequest>()
 
     @JavascriptInterface
     fun speakText(text: String, rate: Float) {
         val safeText = text.take(50_000)
         val safeRate = rate.coerceIn(0.5f, 2.0f)
-        val existing = tts
-        if (existing != null) {
-            existing.setSpeechRate(safeRate)
-            existing.speak(safeText, TextToSpeech.QUEUE_FLUSH, null, "dtwg_tts")
-        } else {
-            ttsPendingText = safeText
-            ttsPendingRate = safeRate
-            tts = TextToSpeech(context) { status ->
-                if (status == TextToSpeech.SUCCESS) {
-                    tts?.language = Locale.US
-                    tts?.setSpeechRate(ttsPendingRate)
-                    ttsPendingText?.let { t ->
-                        tts?.speak(t, TextToSpeech.QUEUE_FLUSH, null, "dtwg_tts")
+        Handler(Looper.getMainLooper()).post {
+            ttsQueue.add(TtsRequest(safeText, safeRate))
+            if (tts != null && ttsReady) {
+                flushTtsQueue()
+                return@post
+            }
+            if (!ttsInitializing) {
+                ttsInitializing = true
+                tts = TextToSpeech(context) { status ->
+                    Handler(Looper.getMainLooper()).post {
+                        ttsInitializing = false
+                        if (status == TextToSpeech.SUCCESS) {
+                            ttsReady = true
+                            tts?.language = Locale.US
+                            flushTtsQueue()
+                        } else {
+                            ttsReady = false
+                            ttsQueue.clear()
+                        }
                     }
                 }
             }
@@ -184,7 +282,23 @@ class DtwgBridge(private val context: Context) {
 
     @JavascriptInterface
     fun stopNativeTts() {
-        tts?.stop()
+        Handler(Looper.getMainLooper()).post {
+            ttsQueue.clear()
+            tts?.stop()
+        }
+    }
+
+    private fun flushTtsQueue() {
+        val engine = tts ?: return
+        if (!ttsReady || ttsQueue.isEmpty()) return
+        val firstMode = if (engine.isSpeaking) TextToSpeech.QUEUE_ADD else TextToSpeech.QUEUE_FLUSH
+        var mode = firstMode
+        while (ttsQueue.isNotEmpty()) {
+            val request = ttsQueue.removeFirst()
+            engine.setSpeechRate(request.rate)
+            engine.speak(request.text, mode, null, "dtwg_tts_${++ttsUtteranceSeq}")
+            mode = TextToSpeech.QUEUE_ADD
+        }
     }
 
     @JavascriptInterface
@@ -309,6 +423,7 @@ class DtwgBridge(private val context: Context) {
         val vibrator = getVibrator()
         return try {
             if (pattern.size <= 1) {
+                if (vibratePrimitiveClick(vibrator)) return true
                 Handler(Looper.getMainLooper()).post {
                     decor?.performHapticFeedback(HapticFeedbackConstants.CONTEXT_CLICK)
                 }
@@ -333,6 +448,23 @@ class DtwgBridge(private val context: Context) {
             Handler(Looper.getMainLooper()).post {
                 decor?.performHapticFeedback(HapticFeedbackConstants.CONTEXT_CLICK)
             }
+            false
+        }
+    }
+
+    private fun vibratePrimitiveClick(vibrator: Vibrator?): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return false
+        if (vibrator == null || !vibrator.hasVibrator()) return false
+        return try {
+            if (!vibrator.areAllPrimitivesSupported(VibrationEffect.Composition.PRIMITIVE_CLICK)) {
+                return false
+            }
+            val effect = VibrationEffect.startComposition()
+                .addPrimitive(VibrationEffect.Composition.PRIMITIVE_CLICK, 0.5f)
+                .compose()
+            vibrator.vibrate(effect)
+            true
+        } catch (e: Exception) {
             false
         }
     }

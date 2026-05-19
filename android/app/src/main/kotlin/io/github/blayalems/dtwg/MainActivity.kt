@@ -1,8 +1,7 @@
 package io.github.blayalems.dtwg
 
-import android.Manifest
+import android.graphics.Color
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.net.Uri
 import android.net.http.SslError
 import android.os.Build
@@ -11,15 +10,18 @@ import android.webkit.*
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.content.ContextCompat
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
 import org.json.JSONObject
+import kotlin.math.roundToInt
 
 class MainActivity : AppCompatActivity() {
 
     companion object {
         const val EXTRA_NOTIF_ACTION = "notif_action"
         private const val PWA_URL = "https://blayalems.github.io/DTWG/"
-        private const val NOTIF_PERM_REQUEST = 1
         private const val PREFS_NAME = "dtwg"
         private const val PREFS_KEY_VC = "vc"
     }
@@ -29,6 +31,15 @@ class MainActivity : AppCompatActivity() {
     private var pendingAssetRefreshVersion: Int = 0
 
     private var filePathCallback: ValueCallback<Array<Uri>>? = null
+
+    private data class NativeInsetsCss(
+        val top: Int = 0,
+        val right: Int = 0,
+        val bottom: Int = 0,
+        val left: Int = 0,
+    )
+
+    private var latestInsetsCss = NativeInsetsCss()
 
     private val fileChooserLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -47,8 +58,11 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        installSplashScreen()
         super.onCreate(savedInstanceState)
-        requestNotifPermissionIfNeeded()
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        window.statusBarColor = Color.TRANSPARENT
+        window.navigationBarColor = Color.TRANSPARENT
 
         webView = WebView(this).also { wv ->
             wv.settings.apply {
@@ -68,16 +82,42 @@ class MainActivity : AppCompatActivity() {
             wv.webChromeClient = DtwgChromeClient()
             wv.webViewClient   = DtwgWebViewClient()
             wv.addJavascriptInterface(DtwgBridge(this), "DTWGAndroid")
+            ViewCompat.setOnApplyWindowInsetsListener(wv) { _, insets ->
+                val bars = insets.getInsets(
+                    WindowInsetsCompat.Type.systemBars() or
+                        WindowInsetsCompat.Type.displayCutout()
+                )
+                val density = resources.displayMetrics.density.coerceAtLeast(1f)
+                latestInsetsCss = NativeInsetsCss(
+                    top = (bars.top / density).roundToInt(),
+                    right = (bars.right / density).roundToInt(),
+                    bottom = (bars.bottom / density).roundToInt(),
+                    left = (bars.left / density).roundToInt(),
+                )
+                pushNativeInsets()
+                insets
+            }
             setContentView(wv)
+            ViewCompat.requestApplyInsets(wv)
         }
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
-                if (::webView.isInitialized && webView.canGoBack()) {
-                    webView.goBack()
+                if (!::webView.isInitialized) {
+                    isEnabled = false
+                    onBackPressedDispatcher.onBackPressed()
                     return
                 }
-                isEnabled = false
-                onBackPressedDispatcher.onBackPressed()
+                webView.evaluateJavascript(
+                    "(function(){return !!(window.__dtwgHandleNativeBack&&window.__dtwgHandleNativeBack());})()"
+                ) { handled ->
+                    if (handled == "true") return@evaluateJavascript
+                    if (webView.canGoBack()) {
+                        webView.goBack()
+                        return@evaluateJavascript
+                    }
+                    isEnabled = false
+                    onBackPressedDispatcher.onBackPressed()
+                }
             }
         })
 
@@ -114,6 +154,17 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun pushNativeInsets() {
+        if (!::webView.isInitialized) return
+        val i = latestInsetsCss
+        webView.post {
+            webView.evaluateJavascript(
+                "if(window.__dtwgSetNativeInsets){window.__dtwgSetNativeInsets(${i.top},${i.right},${i.bottom},${i.left});}",
+                null
+            )
+        }
+    }
+
     private fun prepareUrlForVersion(): String {
         val prefs   = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
         val stored  = prefs.getInt(PREFS_KEY_VC, 0)
@@ -139,15 +190,6 @@ class MainActivity : AppCompatActivity() {
             packageManager.getPackageInfo(packageName, 0).versionCode
         }
 
-    private fun requestNotifPermissionIfNeeded() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
-            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
-            != PackageManager.PERMISSION_GRANTED
-        ) {
-            requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), NOTIF_PERM_REQUEST)
-        }
-    }
-
     private inner class DtwgWebViewClient : WebViewClient() {
         override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest) = false
 
@@ -168,6 +210,7 @@ class MainActivity : AppCompatActivity() {
                     };
                 })();
             """.trimIndent(), null)
+            pushNativeInsets()
 
             if (pendingAssetRefreshVersion > 0) {
                 refreshPwaAssetsAfterApkUpdate(view, pendingAssetRefreshVersion)

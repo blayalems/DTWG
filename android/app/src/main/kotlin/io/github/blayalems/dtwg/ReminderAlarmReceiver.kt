@@ -68,9 +68,13 @@ class ReminderAlarmReceiver : BroadcastReceiver() {
             val am = context.getSystemService(Context.ALARM_SERVICE) as? AlarmManager ?: return
             val pi = pendingIntent(context, hour, minute)
             val next = nextTrigger(hour, minute)
+            val canUseExact = Build.VERSION.SDK_INT < Build.VERSION_CODES.S || am.canScheduleExactAlarms()
 
             try {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                if (!canUseExact) {
+                    Log.w("ReminderAlarm", "Exact alarms unavailable; scheduling inexact reminder")
+                    scheduleInexact(am, next, pi)
+                } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                     am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, next, pi)
                 } else {
                     @Suppress("DEPRECATION")
@@ -79,7 +83,7 @@ class ReminderAlarmReceiver : BroadcastReceiver() {
             } catch (se: SecurityException) {
                 // Android 12+ may require SCHEDULE_EXACT_ALARM; fall back to inexact.
                 Log.w("ReminderAlarm", "Falling back to inexact alarm: ${se.message}")
-                am.set(AlarmManager.RTC_WAKEUP, next, pi)
+                scheduleInexact(am, next, pi)
             }
         }
 
@@ -99,6 +103,20 @@ class ReminderAlarmReceiver : BroadcastReceiver() {
                 intent,
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
+        }
+
+        private fun scheduleInexact(am: AlarmManager, triggerAtMillis: Long, pi: PendingIntent) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
+                am.setWindow(
+                    AlarmManager.RTC_WAKEUP,
+                    triggerAtMillis,
+                    15 * 60 * 1000L,
+                    pi,
+                )
+            } else {
+                @Suppress("DEPRECATION")
+                am.set(AlarmManager.RTC_WAKEUP, triggerAtMillis, pi)
+            }
         }
 
         private fun nextTrigger(hour: Int, minute: Int): Long {

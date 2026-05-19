@@ -3,6 +3,8 @@ name: Build Android APK
 on:
   push:
     branches: [main]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -64,14 +66,17 @@ jobs:
           retention-days: 90
 
       - name: Delete previous latest-apk release (if exists)
+        if: github.event_name != 'pull_request'
         run: gh release delete latest-apk --yes 2>/dev/null || true
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Delete previous latest-apk tag (if exists)
+        if: github.event_name != 'pull_request'
         run: git push origin :refs/tags/latest-apk 2>/dev/null || true
 
       - name: Create latest-apk release
+        if: github.event_name != 'pull_request'
         run: |
           gh release create latest-apk dtwg-android-debug.apk \
             --title "DTWG Android APK — latest build" \

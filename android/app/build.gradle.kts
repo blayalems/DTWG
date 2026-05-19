@@ -10,8 +10,8 @@ android {
         applicationId = "io.github.blayalems.dtwg"
         minSdk = 26
         targetSdk = 36
-        versionCode = 15
-        versionName = "1.5.0"
+        versionCode = 16
+        versionName = "1.6.3"
     }
 
     signingConfigs {
@@ -48,6 +48,7 @@ android {
 
 dependencies {
     implementation("androidx.core:core-ktx:1.18.0")
+    implementation("androidx.core:core-splashscreen:1.0.1")
     implementation("androidx.appcompat:appcompat:1.7.0")
     // org.json is provided by the Android platform — do not add as a dependency
 }
