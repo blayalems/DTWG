@@ -114,7 +114,13 @@ function applyTheme(mode) {
   if (mode === 'oled') { isDark = true; }
   else if (mode === 'dark') { isDark = true; }
   else if (mode === 'light') { isDark = false; }
-  else { isDark = window.matchMedia('(prefers-color-scheme: dark)').matches; }
+  else {
+    if (typeof window.DTWG_SYSTEM_IS_DARK !== 'undefined') {
+      isDark = window.DTWG_SYSTEM_IS_DARK;
+    } else {
+      isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    }
+  }
   root.setAttribute('data-theme', mode === 'oled' ? 'oled' : (isDark ? 'dark' : 'light'));
 
   if (isDark) {

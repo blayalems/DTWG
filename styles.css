@@ -1140,44 +1140,44 @@ a { color: var(--md-primary); text-decoration: none; }
 [data-theme="oled"] .history-item    { background: #090909; border-color: #242424; }
 [data-theme="oled"] .onboarding-content { background: #090909; }
 
-[data-theme="dark"] .verse-para.hl-general   { background: rgba(103, 80,164,.28); }
-[data-theme="dark"] .verse-para.hl-promise   { background: rgba( 46,125, 50,.28); }
-[data-theme="dark"] .verse-para.hl-command   { background: rgba( 21,101,192,.28); }
-[data-theme="dark"] .verse-para.hl-warning   { background: rgba(230, 81,  0,.28); }
-[data-theme="dark"] .verse-para.hl-principle { background: rgba(245,127, 23,.22); }
-[data-theme="oled"] .verse-para.hl-general   { background: rgba(103, 80,164,.32); }
-[data-theme="oled"] .verse-para.hl-promise   { background: rgba( 46,125, 50,.32); }
-[data-theme="oled"] .verse-para.hl-command   { background: rgba( 21,101,192,.32); }
-[data-theme="oled"] .verse-para.hl-warning   { background: rgba(230, 81,  0,.32); }
-[data-theme="oled"] .verse-para.hl-principle { background: rgba(245,127, 23,.26); }
+[data-theme="dark"] .verse-para.hl-general   { background: rgba(162, 126, 255, 0.36); }
+[data-theme="dark"] .verse-para.hl-promise   { background: rgba(76, 175, 80, 0.34); }
+[data-theme="dark"] .verse-para.hl-command   { background: rgba(33, 150, 243, 0.34); }
+[data-theme="dark"] .verse-para.hl-warning   { background: rgba(255, 112, 67, 0.34); }
+[data-theme="dark"] .verse-para.hl-principle { background: rgba(255, 202, 40, 0.28); }
+[data-theme="oled"] .verse-para.hl-general   { background: rgba(162, 126, 255, 0.42); }
+[data-theme="oled"] .verse-para.hl-promise   { background: rgba(76, 175, 80, 0.40); }
+[data-theme="oled"] .verse-para.hl-command   { background: rgba(33, 150, 243, 0.40); }
+[data-theme="oled"] .verse-para.hl-warning   { background: rgba(255, 112, 67, 0.40); }
+[data-theme="oled"] .verse-para.hl-principle { background: rgba(255, 202, 40, 0.34); }
 
-[data-theme="dark"] .notebook-highlight.hl-general   { background: rgba(103, 80,164,.20); }
-[data-theme="dark"] .notebook-highlight.hl-promise   { background: rgba( 46,125, 50,.20); }
-[data-theme="dark"] .notebook-highlight.hl-command   { background: rgba( 21,101,192,.20); }
-[data-theme="dark"] .notebook-highlight.hl-warning   { background: rgba(230, 81,  0,.20); }
-[data-theme="dark"] .notebook-highlight.hl-principle { background: rgba(245,127, 23,.16); }
-[data-theme="oled"] .notebook-highlight.hl-general   { background: rgba(103, 80,164,.24); }
-[data-theme="oled"] .notebook-highlight.hl-promise   { background: rgba( 46,125, 50,.24); }
-[data-theme="oled"] .notebook-highlight.hl-command   { background: rgba( 21,101,192,.24); }
-[data-theme="oled"] .notebook-highlight.hl-warning   { background: rgba(230, 81,  0,.24); }
-[data-theme="oled"] .notebook-highlight.hl-principle { background: rgba(245,127, 23,.18); }
+[data-theme="dark"] .notebook-highlight.hl-general   { background: rgba(162, 126, 255, 0.26); }
+[data-theme="dark"] .notebook-highlight.hl-promise   { background: rgba(76, 175, 80, 0.24); }
+[data-theme="dark"] .notebook-highlight.hl-command   { background: rgba(33, 150, 243, 0.24); }
+[data-theme="dark"] .notebook-highlight.hl-warning   { background: rgba(255, 112, 67, 0.24); }
+[data-theme="dark"] .notebook-highlight.hl-principle { background: rgba(255, 202, 40, 0.20); }
+[data-theme="oled"] .notebook-highlight.hl-general   { background: rgba(162, 126, 255, 0.32); }
+[data-theme="oled"] .notebook-highlight.hl-promise   { background: rgba(76, 175, 80, 0.30); }
+[data-theme="oled"] .notebook-highlight.hl-command   { background: rgba(33, 150, 243, 0.30); }
+[data-theme="oled"] .notebook-highlight.hl-warning   { background: rgba(255, 112, 67, 0.30); }
+[data-theme="oled"] .notebook-highlight.hl-principle { background: rgba(255, 202, 40, 0.24); }
 
-[data-theme="dark"] .hl-badge-general  { background: rgba(103, 80,164,.35); color: #D0BEFF; }
-[data-theme="dark"] .hl-badge-promise  { background: rgba( 46,125, 50,.35); color: #A8D5A9; }
-[data-theme="dark"] .hl-badge-command  { background: rgba( 21,101,192,.35); color: #A8C8F8; }
-[data-theme="dark"] .hl-badge-warning  { background: rgba(230, 81,  0,.35); color: #FFB89A; }
-[data-theme="dark"] .hl-badge-principle{ background: rgba(245,127, 23,.30); color: #FFE57F; }
-[data-theme="oled"] .hl-badge-general  { background: rgba(103, 80,164,.38); color: #D0BEFF; }
-[data-theme="oled"] .hl-badge-promise  { background: rgba( 46,125, 50,.38); color: #A8D5A9; }
-[data-theme="oled"] .hl-badge-command  { background: rgba( 21,101,192,.38); color: #A8C8F8; }
-[data-theme="oled"] .hl-badge-warning  { background: rgba(230, 81,  0,.38); color: #FFB89A; }
-[data-theme="oled"] .hl-badge-principle{ background: rgba(245,127, 23,.34); color: #FFE57F; }
+[data-theme="dark"] .hl-badge-general  { background: rgba(162, 126, 255, 0.38); color: #D0BEFF; }
+[data-theme="dark"] .hl-badge-promise  { background: rgba( 76, 175,  80, 0.36); color: #A8D5A9; }
+[data-theme="dark"] .hl-badge-command  { background: rgba( 33, 150, 243, 0.36); color: #A8C8F8; }
+[data-theme="dark"] .hl-badge-warning  { background: rgba(255, 112,  67, 0.36); color: #FFB89A; }
+[data-theme="dark"] .hl-badge-principle{ background: rgba(255, 202,  40, 0.30); color: #FFE57F; }
+[data-theme="oled"] .hl-badge-general  { background: rgba(162, 126, 255, 0.44); color: #D0BEFF; }
+[data-theme="oled"] .hl-badge-promise  { background: rgba( 76, 175,  80, 0.42); color: #A8D5A9; }
+[data-theme="oled"] .hl-badge-command  { background: rgba( 33, 150, 243, 0.42); color: #A8C8F8; }
+[data-theme="oled"] .hl-badge-warning  { background: rgba(255, 112,  67, 0.42); color: #FFB89A; }
+[data-theme="oled"] .hl-badge-principle{ background: rgba(255, 202,  40, 0.36); color: #FFE57F; }
 
-[data-theme="dark"] .hl-circle-general  { background: rgba(103, 80,164,.40); color: #D0BEFF; }
-[data-theme="dark"] .hl-circle-promise  { background: rgba( 46,125, 50,.40); color: #A8D5A9; }
-[data-theme="dark"] .hl-circle-command  { background: rgba( 21,101,192,.40); color: #A8C8F8; }
-[data-theme="dark"] .hl-circle-warning  { background: rgba(230, 81,  0,.40); color: #FFB89A; }
-[data-theme="dark"] .hl-circle-principle{ background: rgba(245,127, 23,.35); color: #FFE57F; }
+[data-theme="dark"] .hl-circle-general  { background: rgba(162, 126, 255, 0.44); color: #D0BEFF; }
+[data-theme="dark"] .hl-circle-promise  { background: rgba( 76, 175,  80, 0.42); color: #A8D5A9; }
+[data-theme="dark"] .hl-circle-command  { background: rgba( 33, 150, 243, 0.42); color: #A8C8F8; }
+[data-theme="dark"] .hl-circle-warning  { background: rgba(255, 112,  67, 0.42); color: #FFB89A; }
+[data-theme="dark"] .hl-circle-principle{ background: rgba(255, 202,  40, 0.36); color: #FFE57F; }
 [data-theme="dark"] .hl-eraser          { background: rgba(255,255,255,.10); color: #CAC4D0; border-color: #49454E; }
 
 /* ===== DESKTOP ===== */
@@ -1297,16 +1297,16 @@ button:focus:not(:focus-visible), input:focus:not(:focus-visible) { outline: non
 /* When running as fullscreen PWA, system bars are gone — add extra top padding */
 @media (display-mode: fullscreen) {
   #app-header {
-    padding-top: max(env(safe-area-inset-top, 0px), 20px);
+    padding-top: max(var(--safe-top), 20px);
   }
   #main-content {
-    top: calc(max(env(safe-area-inset-top, 0px), 20px) + var(--header-height));
+    top: calc(max(var(--safe-top), 20px) + var(--header-height));
   }
 }
 /* Standalone: content flows behind translucent system bars on Android */
 @media (display-mode: standalone) {
   #app-header {
-    padding-top: calc(env(safe-area-inset-top, 0px) + 12px);
+    padding-top: calc(var(--safe-top) + 12px);
   }
 }
 
